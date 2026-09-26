@@ -162,6 +162,12 @@ it('restarts the slot grid at every local midnight', function (): void {
         ->and($open->nextAvailableSlot(7 * 24 * 60)?->start->format('Y-m-d H:i'))->toBe('2026-09-28 00:00')
         // An anchor that never falls inside a day leaves no grid line at all.
         ->and($open->slots('2026-09-28', '2026-09-30')->duration(60)->alignTo(3000, anchor: 2000)->get())->toHaveCount(0);
+
+    // Santiago falls back at midnight (04-04 23:00–23:59 repeats): the repeated hour's lines
+    // come before the restart, as the local wall clock reads them.
+    $santiago = hours(['week' => ['saturday' => ['23:50-01:00']]], 'America/Santiago')->availability()->at(iso('2026-04-01T00:00:00-03:00'));
+
+    expect($santiago->slots('2026-04-04', '2026-04-04')->duration(10)->step(15)->first()?->start->format('H:i P'))->toBe('23:00 -04:00');
 });
 
 it('starts the next-slot search at now when asked from the past', function (): void {

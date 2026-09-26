@@ -37,15 +37,15 @@ final class SlotGrid
             }
 
             $step = $grid - $remainder;
+            $next = $instant - $seconds + $step * 60;
 
             if ($minute + $step >= Time::END_OF_DAY) {
-                // The day has no further line: continue from the next local midnight.
-                $instant = $clock->boundaryAt($clock->localEpochDay($instant) + 1, 0);
-
-                continue;
+                // The day has no further line: the grid restarts at the next local midnight
+                // (unless a fall-back hour repeats wall times, and so a line, before it).
+                $next = min($next, $clock->boundaryAt($clock->localEpochDay($instant) + 1, 0));
             }
 
-            $instant = $instant - $seconds + $step * 60;
+            $instant = $next;
         }
 
         return $instant;
