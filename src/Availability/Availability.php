@@ -269,7 +269,9 @@ final class Availability
         $windowUntil = $lastStart + ($duration + $this->after) * 60 + 86400;
         $capacity = $this->timeline($this->busy($windowFrom, $windowUntil), $windowFrom, $windowUntil);
         $clock = $this->hours->timeline()->clock;
-        $days = intdiv($lastStart - $startMin + 86399, 86400) + 1;
+        // Reach past the last start by the slot body and after-buffer: a run cut at
+        // the scan edge would otherwise reject slots that end days later (rentals).
+        $days = intdiv($lastStart - $startMin + ($duration + $this->after) * 60 + 86399, 86400) + 1;
 
         foreach ($this->hours->timeline()->forward($startMin, $days) as $run) {
             if ($run->start >= $lastStart) {

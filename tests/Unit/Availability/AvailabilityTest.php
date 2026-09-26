@@ -131,6 +131,21 @@ it('finds the next available slot across a closed weekend', function (): void {
         ->and(hours([])->availability()->nextAvailableSlot(30))->toBeNull();
 });
 
+it('generates slots whose body runs days past the last start', function (): void {
+    // Multi-day rentals: the scan must reach the end of the slot body, not just the last start.
+    $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);
+    $availability = hours(['week' => $allWeek])->availability()->at(at('2026-09-27 12:00'));
+
+    $week = $availability->slots('2026-09-28', '2026-09-28')->duration(7 * 24 * 60)->get();
+    $threeDays = $availability->slots('2026-09-28', '2026-09-28')->duration(3 * 24 * 60)->step(60)->get();
+
+    expect($availability->isAvailable(at('2026-09-28 00:00'), at('2026-10-05 00:00')))->toBeTrue()
+        ->and($week->map(fn (Slot $slot) => $slot->start->format('Y-m-d H:i').' → '.$slot->end->format('Y-m-d H:i'))->all())
+        ->toBe(['2026-09-28 00:00 → 2026-10-05 00:00'])
+        ->and($threeDays)->toHaveCount(24)
+        ->and($threeDays->last()?->end->format('Y-m-d H:i'))->toBe('2026-10-01 23:00');
+});
+
 it('lists free periods', function (): void {
     $free = clinicAvailability()->capacity(2)
         ->withBusyPeriods([busy('2026-09-28 10:00', '2026-09-28 11:00', weight: 2), busy('2026-09-28 12:00', '2026-09-28 13:00')])
