@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use RoundlyConsulting\OpeningHours\OpeningHours;
+use RoundlyConsulting\OpeningHours\Tests\Support\SwappedModelsTestCase;
+use RoundlyConsulting\OpeningHours\Tests\Support\UuidKeysTestCase;
 use RoundlyConsulting\OpeningHours\Tests\TestCase;
 use RoundlyConsulting\OpeningHours\ValueObjects\LocalDate;
 use RoundlyConsulting\OpeningHours\ValueObjects\MonthDay;
 
 uses(TestCase::class)->in('Arch', 'Feature', 'Unit', 'Oracle');
+
+// Model-swap and uuid-key proofs need their config applied BEFORE boot: own base cases.
+uses(SwappedModelsTestCase::class)->in('ModelSwap');
+uses(UuidKeysTestCase::class)->in('UuidKeys');
 
 function md(string $value): MonthDay
 {
