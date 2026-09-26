@@ -498,7 +498,8 @@ final class CalendarParser
         $valid = true;
 
         foreach ([[$from, $fromPath], [$to, $toPath]] as [$value, $valuePath]) {
-            if (! Time::isValid($value)) {
+            // A string range is one value: report it once, not once per half.
+            if (! Time::isValid($value) && ($valid || $fromPath !== $toPath)) {
                 $this->violate(ViolationCode::InvalidTime, $valuePath, ['value' => $value]);
                 $valid = false;
             }

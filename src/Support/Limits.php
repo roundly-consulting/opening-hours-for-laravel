@@ -35,4 +35,19 @@ final class Limits
     {
         return Config::intBetween('opening-hours.limits.meta_bytes', 1, 1_048_576, 4096);
     }
+
+    public static function calendars(): int
+    {
+        return Config::intBetween('opening-hours.limits.calendars', 1, 1000, 16);
+    }
+
+    public static function busyPeriods(): int
+    {
+        return Config::intBetween('opening-hours.limits.busy_periods', 1, 1_000_000, 10000);
+    }
+
+    public static function slots(): int
+    {
+        return Config::intBetween('opening-hours.limits.slots', 1, 100_000, 2000);
+    }
 }

@@ -3,6 +3,9 @@ parameters:
     paths:
         - src
         - config
+        - database
+        # The owner trait has no caller inside src/; a fixture owner gets it analysed.
+        - tests/Fixtures/Clinic.php
     # This package ships its own config/ dir; env() is correct there.
     configDirectories:
         - config
