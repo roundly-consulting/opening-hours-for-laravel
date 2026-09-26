@@ -1,11 +1,19 @@
 {
-    "name": "roundly-consulting/package-template-for-laravel",
-    "description": "TODO: replace with a one-line description of the new package.",
+    "name": "roundly-consulting/opening-hours-for-laravel",
+    "description": "Opening hours, seasonal schedules, exceptions and bookable availability for any Eloquent model — DST-correct, native, zero third-party deps.",
     "keywords": [
         "roundly-consulting",
-        "laravel"
+        "laravel",
+        "opening-hours",
+        "business-hours",
+        "availability",
+        "booking-slots",
+        "schedules",
+        "holidays",
+        "timezone",
+        "dst"
     ],
-    "homepage": "https://github.com/roundly-consulting/package-template-for-laravel",
+    "homepage": "https://github.com/roundly-consulting/opening-hours-for-laravel",
     "license": "MIT",
     "authors": [
         {
@@ -29,6 +37,18 @@
         },
         {
             "type": "path",
+            "url": "../enums-for-laravel*",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/roundly-consulting/enums-for-laravel",
+            "no-api": true
+        },
+        {
+            "type": "path",
             "url": "../testing-for-laravel*",
             "options": {
                 "symlink": true
@@ -42,7 +62,17 @@
     ],
     "require": {
         "php": "^8.4",
+        "illuminate/bus": "^12.0|^13.0",
+        "illuminate/cache": "^12.0|^13.0",
+        "illuminate/console": "^12.0|^13.0",
         "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/events": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/queue": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/validation": "^12.0|^13.0",
+        "roundly-consulting/enums-for-laravel": "@dev",
         "roundly-consulting/package-toolkit-for-laravel": "@dev"
     },
     "require-dev": {
@@ -58,12 +88,13 @@
     },
     "autoload": {
         "psr-4": {
-            "RoundlyConsulting\\PackageTemplate\\": "src"
+            "RoundlyConsulting\\OpeningHours\\": "src",
+            "RoundlyConsulting\\OpeningHours\\Database\\Factories\\": "database/factories"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "RoundlyConsulting\\PackageTemplate\\Tests\\": "tests"
+            "RoundlyConsulting\\OpeningHours\\Tests\\": "tests"
         }
     },
     "scripts": {
@@ -83,7 +114,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "RoundlyConsulting\\PackageTemplate\\PackageTemplateServiceProvider"
+                "RoundlyConsulting\\OpeningHours\\OpeningHoursServiceProvider"
             ]
         }
     },

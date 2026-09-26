@@ -16,6 +16,6 @@ return [
     |
     */
 
-    'enabled' => env('PACKAGE_TEMPLATE_ENABLED', true),
+    'enabled' => env('OPENING_HOURS_ENABLED', true),
 
 ];

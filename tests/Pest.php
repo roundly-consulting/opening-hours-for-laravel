@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-use RoundlyConsulting\PackageTemplate\Tests\TestCase;
+use RoundlyConsulting\OpeningHours\Tests\TestCase;
 
-uses(TestCase::class)->in(__DIR__);
+uses(TestCase::class)->in('Arch', 'Feature', 'Unit');

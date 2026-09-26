@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-namespace RoundlyConsulting\PackageTemplate;
+namespace RoundlyConsulting\OpeningHours;
 
 use RoundlyConsulting\PackageToolkit\Package;
 use RoundlyConsulting\PackageToolkit\PackageServiceProvider;
 
-final class PackageTemplateServiceProvider extends PackageServiceProvider
+final class OpeningHoursServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
         $package
-            ->name('package-template')
+            ->name('opening-hours')
             ->hasConfigFile()
             ->contributesToAbout(static fn (): array => [
-                'Enabled' => config('package-template.enabled', true) ? 'YES' : 'NO',
+                'Enabled' => config('opening-hours.enabled', true) ? 'YES' : 'NO',
             ]);
 
         // Grow this as the package grows:
         //   ->hasMigrations()
         //   ->hasCommands([SomeCommand::class])
         //   ->hasViews() / ->hasTranslations()
-        //   ->hasRoutes('package-template.php')
+        //   ->hasRoutes('opening-hours.php')
         //   ->hasFacadeAlias(SomeFacade::class)
         // See RoundlyConsulting\PackageToolkit\Package for the full fluent API.
     }
