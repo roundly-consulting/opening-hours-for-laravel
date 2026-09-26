@@ -503,14 +503,14 @@ final class OpeningHours
 
     /**
      * Dates an exception (stored or dynamic) closes completely. Defaults to
-     * today … today + 365.
+     * today … today + 365, shortened to fit `max_query_days`.
      *
      * @return list<LocalDate>
      */
     public function exceptionalClosingDates(LocalDate|DateTimeInterface|string|null $from = null, LocalDate|DateTimeInterface|string|null $to = null): array
     {
         $start = $from === null ? LocalDate::today($this->timezone) : $this->localDate($from);
-        $end = $to === null ? $start->addDays(365) : $this->localDate($to);
+        $end = $to === null ? $start->addDays(min(365, Settings::maxQueryDays() - 1)) : $this->localDate($to);
 
         return array_values(array_map(
             static fn (DayHours $day): LocalDate => $day->date ?? $start,

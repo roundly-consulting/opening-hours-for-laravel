@@ -131,7 +131,7 @@ return [
 | `cache.prefix` | `opening-hours` | `OPENING_HOURS_CACHE_PREFIX` | Cache key prefix. |
 | `api.expose_meta` | `false` | — | Include `meta` in API resources. |
 | `api.week_mode` | `upcoming` | — | Status resource week: `upcoming` (next 7 dates) or `calendar_week`. |
-| `api.upcoming_exceptions_days` | `60` | — | Look-ahead of the status resource and structured data. |
+| `api.upcoming_exceptions_days` | `60` | — | Look-ahead of the status resource (capped at `max_query_days − 1`) and structured data. |
 | `prune.exceptions_after_days` | `null` | `OPENING_HOURS_PRUNE_EXCEPTIONS_AFTER_DAYS` | Prune one-off exceptions that ended N days ago. |
 | `prune.trashed_after_days` | `null` | `OPENING_HOURS_PRUNE_TRASHED_AFTER_DAYS` | Purge soft-deleted rows older than N days. |
 | `materialize.enabled` | `false` | `OPENING_HOURS_MATERIALIZE` | Maintain the `opening_hours_intervals` table for SQL scopes. |
@@ -323,7 +323,7 @@ exception (narrowest wins) → the schedule in effect (highest priority, windowe
 closed. An overnight range from the day before still runs into a closed exception day.
 
 ```php
-$hours->exceptionalClosingDates();                         // default: today … +365 days
+$hours->exceptionalClosingDates();                         // default: today … +365 days (within max_query_days)
 $hours->exceptionalClosingDates('2026-01-01', '2026-12-31');
 $hours->exceptionsBetween('2026-12-01', '2026-12-31');     // list<DayHours>
 ```

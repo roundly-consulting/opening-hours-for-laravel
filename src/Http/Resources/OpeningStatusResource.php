@@ -51,7 +51,8 @@ final class OpeningStatusResource extends JsonResource
             ? $hours->forWeekOf($date)
             : $hours->forPeriod($date, $date->addDays(6));
 
-        $upcoming = $hours->exceptionsBetween($date, $date->addDays(Settings::upcomingExceptionsDays()));
+        // Never ask for more days than max_query_days allows: the status would throw.
+        $upcoming = $hours->exceptionsBetween($date, $date->addDays(min(Settings::upcomingExceptionsDays(), Settings::maxQueryDays() - 1)));
 
         return [
             'timezone' => $hours->timezone()->getName(),

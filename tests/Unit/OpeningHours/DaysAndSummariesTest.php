@@ -212,6 +212,15 @@ it('lists exceptional closing dates and exceptions', function (): void {
         ->and($hours->exceptionalClosingDates('2026-12-01', '2026-12-31'))->toHaveCount(1);
 });
 
+it('keeps the default closing-dates window inside max_query_days', function (): void {
+    CarbonImmutable::setTestNow(at('2026-08-01 12:00'));
+    config()->set('opening-hours.max_query_days', 90);
+    $hours = hours(['week' => ['monday' => ['08:00-12:00']], 'exceptions' => [['date' => '2026-08-03'], ['date' => '2026-10-29'], ['date' => '2026-12-24']]]);
+
+    // today … today + 89: the no-argument call must not throw because the cap is lower than a year.
+    expect(array_map(fn ($date) => $date->toDateString(), $hours->exceptionalClosingDates()))->toBe(['2026-08-03', '2026-10-29']);
+});
+
 it('knows when it is always closed and when it is not', function (): void {
     expect(hours(['week' => ['monday' => []], 'exceptions' => [['date' => '2026-01-01']]])->isAlwaysClosed())->toBeTrue()
         ->and(hours(['exceptions' => [['date' => '2026-01-01', 'ranges' => ['09:00-10:00']]]])->isAlwaysClosed())->toBeFalse()

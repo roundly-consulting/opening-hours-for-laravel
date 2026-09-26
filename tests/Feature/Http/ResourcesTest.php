@@ -55,6 +55,14 @@ it('lists seven upcoming dates or the calendar week, and upcoming exceptions', f
         ->and($upcoming['is_open'])->toBeFalse();
 });
 
+it('lists upcoming exceptions only as far as max_query_days allows', function (): void {
+    CarbonImmutable::setTestNow(at('2026-12-01 10:00'));
+    config()->set('opening-hours.api.upcoming_exceptions_days', 400);
+    $hours = hours(['week' => ['monday' => ['08:00-12:00']], 'exceptions' => [['date' => '2026-12-24'], ['date' => '2027-11-30'], ['date' => '2027-12-24']]]);
+
+    expect(array_column(resolveResource(OpeningStatusResource::make($hours))['upcoming_exceptions'], 'date'))->toBe(['2026-12-24', '2027-11-30']);
+});
+
 it('reports a closed-all-week status', function (): void {
     $status = resolveResource(OpeningStatusResource::make(hours([]))->at(at('2026-09-26 12:00')));
 
