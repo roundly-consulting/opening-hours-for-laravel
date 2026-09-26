@@ -2,7 +2,49 @@
 
 declare(strict_types=1);
 
+use RoundlyConsulting\OpeningHours\Models\Calendar;
+use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
+use RoundlyConsulting\OpeningHours\Models\Schedule;
+
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Owner key type
+    |--------------------------------------------------------------------------
+    |
+    | The primary-key type of the models that own calendars: bigint, uuid or
+    | ulid. Decides the owner_id column type in the published migrations.
+    |
+    */
+
+    'key_type' => env('OPENING_HOURS_KEY_TYPE', 'bigint'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Models
+    |--------------------------------------------------------------------------
+    |
+    | Swap in your own subclasses (they must extend the packaged models).
+    |
+    */
+
+    'models' => [
+        'calendar' => Calendar::class,
+        'schedule' => Schedule::class,
+        'exception_rule' => ExceptionRule::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default calendar
+    |--------------------------------------------------------------------------
+    |
+    | The calendar key used when none is given ($clinic->openingHours()).
+    |
+    */
+
+    'default_calendar' => env('OPENING_HOURS_DEFAULT_CALENDAR', 'default'),
 
     /*
     |--------------------------------------------------------------------------
@@ -56,6 +98,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Delete with owner
+    |--------------------------------------------------------------------------
+    |
+    | Permanently deleting an owner (a model without SoftDeletes, or
+    | forceDelete()) removes its calendars too. Soft deletes keep them.
+    |
+    */
+
+    'delete_with_owner' => (bool) env('OPENING_HOURS_DELETE_WITH_OWNER', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Limits
     |--------------------------------------------------------------------------
     |
@@ -64,11 +118,32 @@ return [
     */
 
     'limits' => [
+        'calendars' => 16,
         'schedules' => 20,
         'ranges_per_day' => 12,
         'exceptions' => 1000,
         'label_length' => 191,
         'meta_bytes' => 4096,
+        'busy_periods' => 10000,
+        'slots' => 2000,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Definition cache
+    |--------------------------------------------------------------------------
+    |
+    | Compiled definitions are cached per (calendar, revision); every write
+    | bumps the revision, so there is nothing to invalidate. ttl in seconds,
+    | null = forever. store null = the default cache store.
+    |
+    */
+
+    'cache' => [
+        'enabled' => (bool) env('OPENING_HOURS_CACHE_ENABLED', true),
+        'store' => env('OPENING_HOURS_CACHE_STORE'),
+        'ttl' => env('OPENING_HOURS_CACHE_TTL', 86400),
+        'prefix' => env('OPENING_HOURS_CACHE_PREFIX', 'opening-hours'),
     ],
 
     /*
@@ -76,13 +151,59 @@ return [
     | API output
     |--------------------------------------------------------------------------
     |
-    | upcoming_exceptions_days: how far ahead the status resource and the
-    | structured data list upcoming exceptions.
+    | expose_meta: include `meta` in resources. week_mode: `upcoming` (next
+    | seven dates) or `calendar_week`. upcoming_exceptions_days: how far ahead
+    | the status resource and the structured data list exceptions.
     |
     */
 
     'api' => [
+        'expose_meta' => false,
+        'week_mode' => 'upcoming',
         'upcoming_exceptions_days' => 60,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pruning
+    |--------------------------------------------------------------------------
+    |
+    | Defaults for `opening-hours:prune` (schedule it daily). Null = off.
+    |
+    */
+
+    'prune' => [
+        'exceptions_after_days' => env('OPENING_HOURS_PRUNE_EXCEPTIONS_AFTER_DAYS'),
+        'trashed_after_days' => env('OPENING_HOURS_PRUNE_TRASHED_AFTER_DAYS'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Materialized intervals (opt-in)
+    |--------------------------------------------------------------------------
+    |
+    | Keeps opening_hours_intervals filled so whereOpenAt()/whereOpenThroughout()
+    | can filter owners in SQL. Schedule `opening-hours:materialize` daily.
+    |
+    */
+
+    'materialize' => [
+        'enabled' => (bool) env('OPENING_HOURS_MATERIALIZE', false),
+        'days_ahead' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
+        'days_behind' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
+        'connection' => env('OPENING_HOURS_QUEUE_CONNECTION'),
+        'queue' => env('OPENING_HOURS_QUEUE'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Facade alias
+    |--------------------------------------------------------------------------
+    |
+    | Global class alias for the facade; null or false disables it.
+    |
+    */
+
+    'facade_alias' => 'OpeningHours',
 
 ];
