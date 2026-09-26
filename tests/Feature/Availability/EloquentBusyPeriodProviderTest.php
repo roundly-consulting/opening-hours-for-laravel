@@ -88,3 +88,15 @@ it('caps the number of rows read', function (): void {
 
     busyBetween(bookings()->weightColumn(null)->durationColumn(null), '2026-09-28T00:00:00+00:00', '2026-09-29T00:00:00+00:00');
 })->throws(TooManyBusyPeriodsException::class);
+
+it('reads raw values in app.timezone by default, not in the calendar fallback timezone', function (): void {
+    // Eloquent writes datetimes in the app timezone; opening-hours.timezone only
+    // decides where calendars are evaluated and must not reinterpret bookings.
+    config()->set('app.timezone', 'UTC');
+    config()->set('opening-hours.timezone', 'Europe/Bratislava');
+    Booking::query()->insert([['starts_at' => '2026-09-28 08:00:00', 'ends_at' => '2026-09-28 09:00:00', 'duration_minutes' => null, 'seats' => null, 'status' => 'confirmed']]);
+
+    $provider = EloquentBusyPeriodProvider::for(Booking::query());
+
+    expect(busyBetween($provider, '2026-09-28T00:00:00+00:00', '2026-09-29T00:00:00+00:00'))->toBe([['08:00', '09:00', 1]]);
+});

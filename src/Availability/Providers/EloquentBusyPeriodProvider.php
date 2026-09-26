@@ -122,7 +122,7 @@ final class EloquentBusyPeriodProvider implements BusyPeriodProvider
 
     public function busyPeriodsBetween(CarbonImmutable $start, CarbonImmutable $end): iterable
     {
-        $zone = $this->storedIn ?? TimezoneResolver::resolve(null);
+        $zone = $this->storedIn ?? self::appTimezone();
         // Wall-clock bindings are ambiguous around DST changes; widen the SQL window
         // by a few hours and re-check every row precisely in PHP below.
         $lookback = $start->subMinutes($this->maxNullEndMinutes ?? $this->defaultDuration)->subHours(self::SLACK_HOURS);
@@ -177,6 +177,17 @@ final class EloquentBusyPeriodProvider implements BusyPeriodProvider
         }
 
         return $periods;
+    }
+
+    /**
+     * Eloquent writes datetimes in the app timezone; `opening-hours.timezone`
+     * only decides where calendars are evaluated and never reinterprets rows.
+     */
+    private static function appTimezone(): DateTimeZone
+    {
+        $app = config('app.timezone');
+
+        return TimezoneResolver::validate(is_string($app) && $app !== '' ? $app : 'UTC');
     }
 
     private static function identifier(string $column): string
