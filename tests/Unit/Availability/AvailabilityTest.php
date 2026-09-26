@@ -146,6 +146,24 @@ it('generates slots whose body runs days past the last start', function (): void
         ->and($threeDays->last()?->end->format('Y-m-d H:i'))->toBe('2026-10-01 23:00');
 });
 
+it('restarts the slot grid at every local midnight', function (): void {
+    $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);
+    $open = hours(['week' => $allWeek])->availability()->at(at('2026-09-27 12:00'));
+    $overnight = hours(['week' => ['monday' => ['23:30-03:00']]])->availability()->at(at('2026-09-27 12:00'));
+    $format = fn (Slot $slot): string => $slot->start->format('Y-m-d H:i');
+
+    // A 100-minute grid does not divide the day: Tuesday 00:00 is its first line, not 01:40.
+    expect($overnight->slots('2026-09-28', '2026-09-29')->duration(30)->step(100)->get()->map($format)->all())
+        ->toBe(['2026-09-29 00:00', '2026-09-29 01:40'])
+        // A grid longer than a day has one line a day (anchor 10:00): no day is skipped.
+        ->and($open->slots('2026-09-28', '2026-09-30')->duration(60)->step(60)->alignTo(2 * 1440, anchor: 600)->get()->map($format)->all())
+        ->toBe(['2026-09-28 10:00', '2026-09-29 10:00', '2026-09-30 10:00'])
+        // A week-long rental is next available at the coming midnight, not a week later.
+        ->and($open->nextAvailableSlot(7 * 24 * 60)?->start->format('Y-m-d H:i'))->toBe('2026-09-28 00:00')
+        // An anchor that never falls inside a day leaves no grid line at all.
+        ->and($open->slots('2026-09-28', '2026-09-30')->duration(60)->alignTo(3000, anchor: 2000)->get())->toHaveCount(0);
+});
+
 it('lists free periods', function (): void {
     $free = clinicAvailability()->capacity(2)
         ->withBusyPeriods([busy('2026-09-28 10:00', '2026-09-28 11:00', weight: 2), busy('2026-09-28 12:00', '2026-09-28 13:00')])
