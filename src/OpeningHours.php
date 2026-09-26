@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use DateTimeInterface;
 use DateTimeZone;
+use RoundlyConsulting\OpeningHours\Availability\Availability;
 use RoundlyConsulting\OpeningHours\Contracts\DynamicExceptionProvider;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\Engine\Compiler;
@@ -584,6 +585,14 @@ final class OpeningHours
     public function toStructuredData(?DateTimeInterface $asOf = null): StructuredData
     {
         return StructuredDataBuilder::build($this->definition, $this->asOfDate($asOf), Settings::upcomingExceptionsDays());
+    }
+
+    /**
+     * Availability checks and bookable slots on top of these hours.
+     */
+    public function availability(): Availability
+    {
+        return new Availability($this);
     }
 
     // ───────────────────────────── Internals ─────────────────────────────
