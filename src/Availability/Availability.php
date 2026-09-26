@@ -202,13 +202,14 @@ final class Availability
     }
 
     /**
-     * The first free slot after `$after`, scanning 7-day chunks up to
-     * `min(horizon, search_days)`.
+     * The first free slot after `$after` (or now, whichever is later), scanning
+     * 7-day chunks up to `min(horizon, search_days)`.
      */
     public function nextAvailableSlot(int $duration, ?DateTimeInterface $after = null, ?int $step = null, int $weight = 1): ?Slot
     {
         $clock = $this->hours->timeline()->clock;
-        $start = ($after ?? $this->hours->instant($this->now()))->getTimestamp();
+        // Nothing before now is bookable: never spend the search window there.
+        $start = max($after?->getTimestamp() ?? PHP_INT_MIN, $this->now());
         $limit = $this->horizonDays === null ? Settings::searchDays() : min($this->horizonDays, Settings::searchDays());
         $day = $clock->localEpochDay($start);
 

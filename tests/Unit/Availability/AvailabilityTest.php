@@ -164,6 +164,11 @@ it('restarts the slot grid at every local midnight', function (): void {
         ->and($open->slots('2026-09-28', '2026-09-30')->duration(60)->alignTo(3000, anchor: 2000)->get())->toHaveCount(0);
 });
 
+it('starts the next-slot search at now when asked from the past', function (): void {
+    // Everything before now is unbookable, so the search window must not be spent there.
+    expect(clinicAvailability()->nextAvailableSlot(30, at('2025-01-01 00:00'))?->start->format('Y-m-d H:i'))->toBe('2026-09-28 09:00');
+});
+
 it('lists free periods', function (): void {
     $free = clinicAvailability()->capacity(2)
         ->withBusyPeriods([busy('2026-09-28 10:00', '2026-09-28 11:00', weight: 2), busy('2026-09-28 12:00', '2026-09-28 13:00')])
