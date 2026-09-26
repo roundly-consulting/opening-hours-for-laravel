@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://roundly-consulting.com/open-source">
+    <img src="art/hero.png" alt="Opening Hours For Laravel — Roundly open source" width="100%">
+  </a>
+</p>
+
 # Opening Hours for Laravel
 
 Opening hours, seasonal schedules, exceptions and bookable availability for any Eloquent
