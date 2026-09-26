@@ -23,7 +23,8 @@ final class Limits
 
     public static function exceptions(): int
     {
-        return Config::intBetween('opening-hours.limits.exceptions', 1, 100_000, 1000);
+        // An exception's list position is stored in a smallint column (max 32 767 on PostgreSQL).
+        return Config::intBetween('opening-hours.limits.exceptions', 1, 32_767, 1000);
     }
 
     public static function labelLength(): int
