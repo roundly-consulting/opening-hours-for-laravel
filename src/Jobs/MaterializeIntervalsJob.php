@@ -21,6 +21,8 @@ final class MaterializeIntervalsJob implements ShouldBeUnique, ShouldQueue
     use InteractsWithQueue;
     use Queueable;
 
+    private const int MAX_PASSES = 5;
+
     public function __construct(public readonly int $calendarId)
     {
         $this->onConnection(Materialize::connection());
@@ -35,13 +37,25 @@ final class MaterializeIntervalsJob implements ShouldBeUnique, ShouldQueue
     public function handle(MaterializeIntervalsAction $action): void
     {
         $class = CalendarModel::class();
-        $calendar = $class::query()->withTrashed()->find($this->calendarId);
 
-        if ($calendar === null) {
-            return;
+        // A change committed while this job runs cannot queue another one (the unique
+        // lock is held until the job ends), so repeat until the state it started from
+        // is still current — otherwise the intervals would stay stale until the next roll.
+        for ($pass = 0; $pass < self::MAX_PASSES; $pass++) {
+            $calendar = $class::query()->withTrashed()->find($this->calendarId);
+
+            if ($calendar === null) {
+                return;
+            }
+
+            [$from, $to] = Materialize::window(Materialize::hoursFor($calendar));
+            $action->execute($calendar, $from, $to);
+
+            $current = $class::query()->withTrashed()->find($this->calendarId);
+
+            if ($current === null || ($current->revision === $calendar->revision && $current->trashed() === $calendar->trashed())) {
+                return;
+            }
         }
-
-        [$from, $to] = Materialize::window(Materialize::hoursFor($calendar));
-        $action->execute($calendar, $from, $to);
     }
 }

@@ -145,3 +145,43 @@ it('materializes a calendar whose owner is not an opening-hours owner', function
 
     expect(app(MaterializeIntervalsAction::class)->execute($calendar->fresh(), ld('2026-10-19'), ld('2026-10-27')))->toBe(2);
 });
+
+it('re-materializes when the calendar changes while the job runs', function (): void {
+    // The unique lock is held for the whole run, so the change's own job is dropped
+    // (Bus::fake stands in for that): the running job must notice and repeat.
+    Bus::fake();
+    $clinic = materializedClinic(['monday' => ['08:00-12:00']]);
+    $changed = false;
+
+    DB::listen(function ($query) use (&$changed, $clinic): void {
+        if (! $changed && str_contains($query->sql, 'opening_hours_intervals') && str_starts_with(strtolower($query->sql), 'insert')) {
+            $changed = true;
+            $clinic->setOpeningHours(['week' => ['monday' => ['14:00-16:00']]]);
+        }
+    });
+
+    (new MaterializeIntervalsJob($clinic->openingHoursCalendar()->id))->handle(app(MaterializeIntervalsAction::class));
+
+    expect($changed)->toBeTrue()
+        ->and(Interval::query()->get()->map(fn (Interval $i) => $i->opensAt()->setTimezone('Europe/Bratislava')->format('H:i'))->unique()->values()->all())
+        ->toBe(['14:00']);
+});
+
+it('drops the intervals of a calendar soft-deleted while the job runs', function (): void {
+    Bus::fake();
+    $clinic = materializedClinic(['monday' => ['08:00-12:00']]);
+    $deleted = false;
+
+    DB::listen(function ($query) use (&$deleted, $clinic): void {
+        // The soft delete commits just before the job's own replace transaction writes.
+        if (! $deleted && str_contains($query->sql, 'opening_hours_intervals') && str_starts_with(strtolower($query->sql), 'delete')) {
+            $deleted = true;
+            OpeningHours::delete($clinic);
+        }
+    });
+
+    (new MaterializeIntervalsJob($clinic->openingHoursCalendar()->id))->handle(app(MaterializeIntervalsAction::class));
+
+    expect($deleted)->toBeTrue()
+        ->and(Interval::query()->count())->toBe(0);
+});
