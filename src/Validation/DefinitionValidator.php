@@ -13,6 +13,7 @@ use RoundlyConsulting\OpeningHours\Enums\ViolationCode;
 use RoundlyConsulting\OpeningHours\Enums\Weekday;
 use RoundlyConsulting\OpeningHours\Support\Limits;
 use RoundlyConsulting\OpeningHours\Support\TimezoneResolver;
+use RoundlyConsulting\OpeningHours\ValueObjects\AbsoluteWindow;
 use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 
 /**
@@ -157,7 +158,14 @@ final class DefinitionValidator
 
             $this->exceptionOverlaps($exception, $i);
 
-            $key = $exception->recurrence()->value.':'.($exception->window->spanDays() ?? 'open');
+            // Exceptions apply to real dates: an open bound is only valid on a schedule window.
+            if ($exception->window instanceof AbsoluteWindow && ($exception->window->from === null || $exception->window->until === null)) {
+                $this->violate(ViolationCode::InvalidStructure, $path);
+
+                continue;
+            }
+
+            $key = $exception->recurrence()->value.':'.$exception->window->spanDays();
 
             foreach ($buckets[$key] ?? [] as $j) {
                 $other = $data->exceptions[$j];

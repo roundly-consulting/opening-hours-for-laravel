@@ -93,6 +93,20 @@ it('validates DTO-built definitions', function (): void {
     expect($codes)->toContain(ViolationCode::InvalidTimezone, ViolationCode::InvalidPriority, ViolationCode::Overlap);
 });
 
+it('rejects a one-off exception window with an open bound on DTO input', function (): void {
+    // The array parser never builds one; a hand-built DTO must not reach the NOT NULL date columns.
+    $violations = DefinitionValidator::validate(new CalendarData(exceptions: [
+        new ExceptionData(AbsoluteWindow::single(ld('2026-12-24'))),
+        new ExceptionData(new AbsoluteWindow(ld('2026-12-24'), null)),
+        new ExceptionData(new AbsoluteWindow(null, ld('2026-12-31'))),
+    ]));
+
+    expect(array_map(fn (Violation $v) => [$v->code, $v->path], $violations->all()))->toBe([
+        [ViolationCode::InvalidStructure, 'exceptions.1'],
+        [ViolationCode::InvalidStructure, 'exceptions.2'],
+    ]);
+});
+
 it('enforces counts, labels and meta on DTO input', function (): void {
     config()->set('opening-hours.limits.schedules', 1);
     config()->set('opening-hours.limits.exceptions', 1);
