@@ -57,6 +57,14 @@ it('prunes with options, config defaults, a dry run, or nothing configured', fun
     expect(ExceptionRule::query()->count())->toBe(1);
 });
 
+it('treats an empty prune env value as off', function (): void {
+    // `OPENING_HOURS_PRUNE_EXCEPTIONS_AFTER_DAYS=` in .env reaches the config as '' — not a crash.
+    config()->set('opening-hours.prune.exceptions_after_days', '');
+    config()->set('opening-hours.prune.trashed_after_days', '');
+
+    $this->artisan('opening-hours:prune')->expectsOutputToContain('Nothing to prune')->assertSuccessful();
+});
+
 it('materializes inline or queues per calendar, only when enabled', function (): void {
     Bus::fake([MaterializeIntervalsJob::class]);
     $clinic = Clinic::query()->create();

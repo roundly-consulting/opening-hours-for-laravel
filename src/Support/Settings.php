@@ -67,6 +67,9 @@ final class Settings
     private static function nullableDays(string $key): ?int
     {
         // Read raw first: the toolkit accessor maps null to its default, and null means "off" here.
-        return config($key) === null ? null : Config::intBetween($key, 0, 36500, 0);
+        // An empty env value (`KEY=`) arrives as '' and means "off" too.
+        $value = config($key);
+
+        return $value === null || $value === '' ? null : Config::intBetween($key, 0, 36500, 0);
     }
 }
