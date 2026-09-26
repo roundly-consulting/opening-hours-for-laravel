@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use RoundlyConsulting\OpeningHours\Actions\AddExceptionAction;
 use RoundlyConsulting\OpeningHours\Actions\RemoveExceptionAction;
@@ -21,14 +22,22 @@ use RoundlyConsulting\Testing\Fixtures\LockRecordingGrammar;
 function recordLocks(): void
 {
     $connection = DB::connection();
+    LockRecorder::flush();
 
-    if ($connection->getDriverName() !== 'sqlite') {
-        test()->markTestSkipped('The lock recorder grammar is SQLite-only.');
+    if ($connection->getDriverName() === 'sqlite') {
+        // SQLite compiles the lock away; the recording grammar turns it into a marker.
+        $connection->setQueryGrammar(new LockRecordingGrammar($connection));
+        LockRecorder::listenForMarkers();
+
+        return;
     }
 
-    $connection->setQueryGrammar(new LockRecordingGrammar($connection));
-    LockRecorder::flush();
-    LockRecorder::listenForMarkers();
+    // Real engines emit the lock itself.
+    DB::listen(static function (QueryExecuted $query): void {
+        if (str_contains(strtolower($query->sql), 'for update')) {
+            LockRecorder::record('lock-for-update', $query->connection->transactionLevel(), $query->sql);
+        }
+    });
 }
 
 it('locks the calendar row inside the transaction on every write action', function (Closure $write): void {

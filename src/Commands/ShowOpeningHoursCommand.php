@@ -76,20 +76,25 @@ final class ShowOpeningHoursCommand extends Command
      */
     private function owner(): Model
     {
-        $name = (string) $this->argument('owner');
+        $name = self::text($this->argument('owner'));
+        $id = self::text($this->argument('id'));
         $class = Relation::getMorphedModel($name) ?? $name;
 
         if (! class_exists($class) || ! is_subclass_of($class, Model::class) || ! is_subclass_of($class, OpeningHoursOwner::class)) {
             throw InvalidOwnerException::notAnOwner($name);
         }
 
-        $id = (string) $this->argument('id');
-        $owner = $class::query()->find($id);
+        $owner = $class::query()->whereKey($id)->first();
 
         if ($owner === null) {
             throw InvalidOwnerException::notFound($name, $id);
         }
 
         return $owner;
+    }
+
+    private static function text(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '';
     }
 }

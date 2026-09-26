@@ -26,11 +26,11 @@ it('publishes its migrations timestamp-injected into the host', function (): voi
 
 it('applies its migrations on postgres', function () use ($migrations): void {
     expect($migrations)->toApplyOnConnection('pgsql', migrations: 6);
-})->skip(fn (): bool => ! test()->connectionAvailable('pgsql'), 'no postgres connection available');
+})->skip(fn (): bool => ! test()->connectionAvailable('pgsql'), 'no postgres connection available')->group('pgsql');
 
 it('rejects a child-before-parent order on postgres', function () use ($migrations): void {
     expect($migrations)->toRejectBrokenOrderOnConnection(fn (array $files): array => array_reverse($files), 'pgsql');
-})->skip(fn (): bool => ! test()->connectionAvailable('pgsql'), 'no postgres connection available');
+})->skip(fn (): bool => ! test()->connectionAvailable('pgsql'), 'no postgres connection available')->group('pgsql');
 
 /**
  * The driver-truth pin: a leg that quietly stayed on SQLite fails here instead

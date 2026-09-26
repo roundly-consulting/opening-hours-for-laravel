@@ -138,4 +138,6 @@ jobs:
           TESTING_DB_DATABASE: testing
           TESTING_DB_USERNAME: testing
           TESTING_DB_PASSWORD: secret
-        run: vendor/bin/pest --ci --exclude-group=oracle
+        # The postgres-only migration probes belong to the pgsql leg; excluding them keeps
+        # this leg at zero skipped cases, so a skip always means something.
+        run: vendor/bin/pest --ci --exclude-group=oracle --exclude-group=pgsql
