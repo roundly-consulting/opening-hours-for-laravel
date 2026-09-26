@@ -14,23 +14,6 @@ final class OpeningHoursServiceProvider extends PackageServiceProvider
         $package
             ->name('opening-hours')
             ->hasConfigFile()
-            ->contributesToAbout(static fn (): array => [
-                'Enabled' => config('opening-hours.enabled', true) ? 'YES' : 'NO',
-            ]);
-
-        // Grow this as the package grows:
-        //   ->hasMigrations()
-        //   ->hasCommands([SomeCommand::class])
-        //   ->hasViews() / ->hasTranslations()
-        //   ->hasRoutes('opening-hours.php')
-        //   ->hasFacadeAlias(SomeFacade::class)
-        // See RoundlyConsulting\PackageToolkit\Package for the full fluent API.
-    }
-
-    public function register(): void
-    {
-        parent::register();
-
-        // Container bindings (bind/singleton/scoped) go here — never in boot().
+            ->hasTranslations();
     }
 }
