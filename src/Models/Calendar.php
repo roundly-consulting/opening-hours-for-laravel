@@ -11,11 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use RoundlyConsulting\OpeningHours\Actions\BumpRevisionAction;
 use RoundlyConsulting\OpeningHours\Database\Factories\CalendarFactory;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ScheduleData;
 use RoundlyConsulting\OpeningHours\Support\ExceptionRuleModel;
+use RoundlyConsulting\OpeningHours\Support\RevisionGuard;
 use RoundlyConsulting\OpeningHours\Support\ScheduleModel;
 
 /**
@@ -44,6 +46,21 @@ class Calendar extends Model
     protected $table = 'opening_hours_calendars';
 
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        // The header is part of the definition too: a direct edit (admin panel, raw
+        // Eloquent) rolls the revision like a row edit, so the cached definition and
+        // the materialized intervals follow. Actions bump exactly once themselves.
+        static::updated(static function (Calendar $calendar): void {
+            if (RevisionGuard::suppressed() || ! $calendar->wasChanged(['timezone', 'label', 'meta'])) {
+                return;
+            }
+
+            $calendar->forceFill(['revision' => app(BumpRevisionAction::class)->execute($calendar->id)])
+                ->syncOriginalAttribute('revision');
+        });
+    }
 
     /**
      * @return array<string, string>

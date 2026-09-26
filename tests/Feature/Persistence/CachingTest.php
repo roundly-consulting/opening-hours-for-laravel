@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use RoundlyConsulting\OpeningHours\Cache\DefinitionCache;
 use RoundlyConsulting\OpeningHours\Engine\Definition;
+use RoundlyConsulting\OpeningHours\Events\OpeningHoursUpdated;
 use RoundlyConsulting\OpeningHours\Facades\OpeningHours;
 use RoundlyConsulting\OpeningHours\OpeningHoursManager;
 use RoundlyConsulting\OpeningHours\Tests\Fixtures\Clinic;
@@ -103,4 +105,27 @@ it('forgets memo entries when a calendar changes', function (): void {
     OpeningHours::refresh($clinic);
 
     expect($clinic->openingHours()->revision())->toBe(2);
+});
+
+it('rolls the revision when the calendar header is edited directly', function (): void {
+    // An admin panel saving the Calendar model: the cached definition (and the editable
+    // resource built from it) must not keep serving the old timezone, label or meta.
+    $clinic = cachedClinic();
+    $clinic->openingHours();
+    Event::fake([OpeningHoursUpdated::class]);
+
+    $calendar = $clinic->openingHoursCalendar();
+    $calendar?->update(['timezone' => 'America/New_York', 'label' => 'Front desk']);
+    $clinic->unsetRelation('openingHoursCalendars');
+
+    expect($calendar?->revision)->toBe(2)
+        ->and($clinic->openingHoursCalendar()?->revision)->toBe(2)
+        ->and(OpeningHours::edit($clinic)->toData()->timezone)->toBe('America/New_York')
+        ->and(OpeningHours::edit($clinic)->toData()->label)->toBe('Front desk');
+
+    Event::assertDispatchedTimes(OpeningHoursUpdated::class, 1);
+
+    // Saving without a definition change (or a restore) bumps nothing.
+    $calendar?->touch();
+    expect($clinic->openingHoursCalendar()?->revision)->toBe(2);
 });

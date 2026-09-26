@@ -466,9 +466,9 @@ Clinic::query()->withOpeningHours()->paginate();                  // headers onl
 Clinic::query()->withOpeningHours(definitions: true)->paginate(); // full definitions (cache off)
 ```
 
-Direct Eloquent edits of schedules, exceptions and ranges bump the revision automatically. After
-raw SQL edits, or when what `openingHoursTimezone()` returns changes, call
-`OpeningHours::refresh($clinic)` (facade).
+Direct Eloquent edits of schedules, exceptions and ranges — and of a calendar's `timezone`, `label` or
+`meta` — bump the revision automatically. After raw SQL edits, or when what `openingHoursTimezone()`
+returns changes, call `OpeningHours::refresh($clinic)` (facade).
 
 ### 11. Events
 
