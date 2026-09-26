@@ -24,3 +24,15 @@ it('closes or reopens movable holidays relative to Easter', function (): void {
         ->and($hours->forDate('2026-04-05')->source)->toBe(DaySource::Schedule)
         ->and($hours->isAlwaysOpen())->toBeFalse();
 });
+
+it('matches an offset that lands in the neighbouring year', function (): void {
+    // Easter 2027 is 03-28: -90 days is 2026-12-28 and -400 days is 2026-02-21; Easter 2026 + 270 is 2026-12-31.
+    $hours = hours(['week' => ['monday' => ['09:00-17:00'], 'thursday' => ['09:00-17:00']]])
+        ->withDynamicExceptions(new EasterOffsetProvider(-90, 'Early'), new EasterOffsetProvider(270, 'Late'));
+
+    expect($hours->forDate('2026-12-28')->source)->toBe(DaySource::Dynamic)
+        ->and($hours->forDate('2026-12-28')->label)->toBe('Early')
+        ->and($hours->forDate('2026-12-31')->label)->toBe('Late')
+        ->and($hours->forDate('2027-12-30')->source)->toBe(DaySource::Schedule)
+        ->and(hours([])->withDynamicExceptions(new EasterOffsetProvider(-400))->forDate('2026-02-21')->source)->toBe(DaySource::Dynamic);
+});

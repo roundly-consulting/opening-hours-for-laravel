@@ -36,10 +36,15 @@ final readonly class EasterOffsetProvider implements DynamicExceptionProvider
 
     public function exceptionFor(LocalDate $date): ?ExceptionData
     {
-        if (! Easter::sunday($date->year)->addDays($this->offsetDays)->equals($date)) {
-            return null;
+        // A large offset moves the holiday into another year than its Easter's.
+        $year = $date->year - intdiv($this->offsetDays, 365);
+
+        foreach ([$year, $year + 1, $year - 1] as $year) {
+            if (Easter::sunday($year)->addDays($this->offsetDays)->equals($date)) {
+                return new ExceptionData(AbsoluteWindow::single($date), $this->ranges, $this->label);
+            }
         }
 
-        return new ExceptionData(AbsoluteWindow::single($date), $this->ranges, $this->label);
+        return null;
     }
 }
