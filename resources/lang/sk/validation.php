@@ -27,5 +27,6 @@ return [
     'label_too_long' => 'Popis :path môže mať najviac :max znakov.',
     'meta_too_large' => 'Meta údaje :path môžu mať najviac :max bajtov.',
     'unknown_id' => 'Identifikátor :id v :path nepatrí tomuto kalendáru.',
+    'duplicate_id' => 'Identifikátor :id v :path je použitý viackrát.',
     'unsupported_week_array_feature' => 'Funkcia týždenného poľa „:feature“ nie je podporovaná.',
 ];

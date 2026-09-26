@@ -80,6 +80,24 @@ it('rejects ids of another calendar (IDOR)', function (): void {
         ->and(Schedule::query()->where('calendar_id', '!=', Schedule::query()->firstOrFail()->calendar_id)->count())->toBe(0);
 });
 
+it('rejects an id used twice instead of silently dropping one of the rows', function (): void {
+    $clinic = Clinic::query()->create();
+    syncClinic($clinic, ['exceptions' => [['date' => '2026-12-24'], ['date' => '2026-12-31']]]);
+    $payload = OpeningHours::calendar($clinic)?->toData()->toArray() ?? [];
+    // A client duplicated a row (copy-paste in an editor) and kept its id.
+    $payload['exceptions'][1]['id'] = $payload['exceptions'][0]['id'];
+
+    try {
+        syncClinic($clinic, $payload);
+        $this->fail('Expected DuplicateId.');
+    } catch (InvalidOpeningHoursException $exception) {
+        expect($exception->violations()->first()?->code)->toBe(ViolationCode::DuplicateId)
+            ->and($exception->violations()->first()?->path)->toBe('exceptions.1.id');
+    }
+
+    expect(ExceptionRule::query()->pluck('starts_on')->map(fn ($date) => (string) $date)->sort()->values()->all())->toBe(['2026-12-24', '2026-12-31']);
+});
+
 it('checks the expected revision and rolls back completely on a mismatch', function (): void {
     $clinic = Clinic::query()->create();
     syncClinic($clinic, ['week' => ['monday' => ['09:00-10:00']]], expected: 0);

@@ -38,5 +38,6 @@ enum ViolationCode: string
     case LabelTooLong = 'label_too_long';
     case MetaTooLarge = 'meta_too_large';
     case UnknownId = 'unknown_id';
+    case DuplicateId = 'duplicate_id';
     case UnsupportedWeekArrayFeature = 'unsupported_week_array_feature';
 }

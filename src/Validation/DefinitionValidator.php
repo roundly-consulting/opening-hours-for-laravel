@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\OpeningHours\Validation;
 
+use Closure;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
+use RoundlyConsulting\OpeningHours\DataTransferObjects\ScheduleData;
 use RoundlyConsulting\OpeningHours\Engine\WeekCoverage;
 use RoundlyConsulting\OpeningHours\Enums\ViolationCode;
 use RoundlyConsulting\OpeningHours\Enums\Weekday;
@@ -16,7 +18,7 @@ use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 /**
  * Semantic checks on a structurally valid definition: no overlapping ranges
  * (weekly ones on the circular week), at most one base schedule, unambiguous
- * seasonal windows and exceptions, and every configured limit.
+ * seasonal windows and exceptions, unique row ids, and every configured limit.
  */
 final class DefinitionValidator
 {
@@ -52,6 +54,32 @@ final class DefinitionValidator
 
         $this->schedules($data);
         $this->exceptions($data);
+        $this->uniqueIds($data->schedules, fn (int $i): string => $this->paths->schedule($i));
+        $this->uniqueIds($data->exceptions, fn (int $i): string => $this->paths->exception($i));
+    }
+
+    /**
+     * An id names one stored row: given twice, the second write would silently
+     * replace the first and one of the rows would be lost.
+     *
+     * @param  list<ScheduleData>|list<ExceptionData>  $items
+     * @param  Closure(int): string  $path
+     */
+    private function uniqueIds(array $items, Closure $path): void
+    {
+        $seen = [];
+
+        foreach ($items as $i => $item) {
+            if ($item->id === null) {
+                continue;
+            }
+
+            if (isset($seen[$item->id])) {
+                $this->violate(ViolationCode::DuplicateId, $path($i).'.id', ['id' => $item->id]);
+            }
+
+            $seen[$item->id] = true;
+        }
     }
 
     private function schedules(CalendarData $data): void

@@ -53,7 +53,7 @@ it('uses the shared enum helpers', function (): void {
         ->and(Recurrence::values()->all())->toBe(['none', 'yearly'])
         ->and(DaySource::tryFromName('Dynamic'))->toBe(DaySource::Dynamic)
         ->and(WeekMode::hasValue('calendar_week'))->toBeTrue()
-        ->and(ViolationCode::count())->toBe(25);
+        ->and(ViolationCode::count())->toBe(26);
 });
 
 it('explains unavailability in each locale', function (): void {

@@ -124,6 +124,8 @@ it('reports each violation code with its path', function (array $payload, Violat
     'label' => [['label' => str_repeat('x', 192)], ViolationCode::LabelTooLong, 'label'],
     'meta' => [['meta' => ['blob' => str_repeat('x', 5000)]], ViolationCode::MetaTooLarge, 'meta'],
     'id' => [['schedules' => [['id' => 'x', 'week' => []]]], ViolationCode::InvalidStructure, 'schedules.0.id'],
+    'duplicate schedule id' => [['schedules' => [['id' => 7, 'week' => []], ['id' => 7, 'window' => ['from' => '07-01', 'until' => '08-31'], 'week' => []]]], ViolationCode::DuplicateId, 'schedules.1.id'],
+    'duplicate exception id' => [['exceptions' => [['id' => 7, 'date' => '2026-12-24'], ['id' => 7, 'date' => '2026-12-31']]], ViolationCode::DuplicateId, 'exceptions.1.id'],
 ]);
 
 it('collects every violation, not only the first', function (): void {

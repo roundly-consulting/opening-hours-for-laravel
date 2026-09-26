@@ -27,5 +27,6 @@ return [
     'label_too_long' => 'The :path label may not be longer than :max characters.',
     'meta_too_large' => 'The :path meta may not be larger than :max bytes.',
     'unknown_id' => 'The :path id :id does not belong to this calendar.',
+    'duplicate_id' => 'The :path id :id is used more than once.',
     'unsupported_week_array_feature' => 'The week-array feature ":feature" is not supported.',
 ];
