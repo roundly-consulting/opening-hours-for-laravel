@@ -155,7 +155,7 @@ it('behaves as a collection of violations', function (): void {
         ->and(iterator_to_array($list))->toHaveCount(2)
         ->and($list->first()?->toArray())->toBe(['code' => 'invalid_time', 'path' => 'week.monday.0', 'params' => ['value' => 'x']])
         ->and($list->toMessageBag('opening_hours')->keys())->toBe(['opening_hours.week.monday.0', 'opening_hours'])
-        ->and($list->toMessageBag()->first('week.monday.0'))->toBe('The week.monday.0 time is invalid; use HH:MM between 00:00 and 24:00.')
+        ->and($list->toMessageBag()->first('week.monday.0'))->toBe('Monday, range 1: “x” is not a valid time; use HH:MM between 00:00 and 24:00.')
         ->and($list->toMessageBag(locale: 'sk')->first('opening_hours'))->toBe('Časové pásmo je povinné.')
         ->and((new ViolationList)->first())->toBeNull();
 });

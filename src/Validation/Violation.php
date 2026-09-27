@@ -8,7 +8,8 @@ use RoundlyConsulting\OpeningHours\Enums\ViolationCode;
 
 /**
  * One problem in an opening-hours definition, located by a dot path into the
- * input (`schedules.0.week.monday.1`).
+ * input (`schedules.0.week.monday.1`). Messages name the location the way an
+ * editor sees it ("Schedule 1, Monday, range 2") — see `PathLabel`.
  */
 final readonly class Violation
 {
@@ -21,11 +22,21 @@ final readonly class Violation
         public array $params = [],
     ) {}
 
-    public function message(?string $locale = null): string
+    /**
+     * The translated message. `$subject` replaces the path's label, e.g. with the
+     * form field's display name when the path is relative to a single value.
+     */
+    public function message(?string $locale = null, ?string $subject = null): string
     {
+        $params = array_map(static fn (mixed $value): string => (string) $value, $this->params);
+
+        if (isset($params['other'])) {
+            $params['other'] = PathLabel::for($params['other'], $locale);
+        }
+
         return (string) trans(
             'opening-hours::validation.'.$this->code->value,
-            ['path' => $this->path, ...array_map(static fn (mixed $value): string => (string) $value, $this->params)],
+            [...$params, 'path' => $subject ?? PathLabel::for($this->path, $locale)],
             $locale,
         );
     }

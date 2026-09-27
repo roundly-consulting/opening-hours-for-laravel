@@ -89,7 +89,14 @@ final class WeekArrayParser
         $mapped = [];
 
         foreach ($result->violations as $violation) {
-            $mapped[] = $violation->withPath(self::legacyPath($violation->path, $pathMap));
+            $params = $violation->params;
+
+            // An overlap names its counterpart by path too: point it at the legacy key as well.
+            if (isset($params['other'])) {
+                $params['other'] = self::legacyPath((string) $params['other'], $pathMap);
+            }
+
+            $mapped[] = new Violation($violation->code, self::legacyPath($violation->path, $pathMap), $params);
         }
 
         return new ParseResult($result->data, new ViolationList([...$violations, ...$mapped]));

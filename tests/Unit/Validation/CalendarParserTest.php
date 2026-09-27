@@ -85,6 +85,16 @@ it('normalises empty windows to a base schedule', function (mixed $window): void
 
 it('reports each violation code with its path', function (array $payload, ViolationCode $code, string $path, ?ParseOptions $options = null): void {
     expect(violationsOf($payload, $options))->toContain([$code, $path]);
+
+    // …and names it for a human in every locale: no raw dot path, no unfilled placeholder.
+    foreach (CalendarParser::parse($payload, $options ?? new ParseOptions)->violations as $violation) {
+        foreach (['en', 'sk'] as $locale) {
+            $message = $violation->message($locale);
+
+            expect($message)->not->toMatch('/:[a-z_]+/')
+                ->and(str_contains($violation->path, '.') && str_contains($message, $violation->path))->toBeFalse($message);
+        }
+    }
 })->with([
     'structure' => [['schedules' => 'nope'], ViolationCode::InvalidStructure, 'schedules'],
     'schedule not array' => [['schedules' => ['x']], ViolationCode::InvalidStructure, 'schedules.0'],

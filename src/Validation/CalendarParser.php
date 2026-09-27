@@ -370,7 +370,7 @@ final class CalendarParser
     private function boundKind(mixed $value, string $path): ?string
     {
         if (! is_string($value)) {
-            $this->violate(ViolationCode::InvalidDate, $path);
+            $this->violate(ViolationCode::InvalidDate, $path, ['value' => is_scalar($value) ? (string) $value : get_debug_type($value)]);
 
             return null;
         }

@@ -8,12 +8,15 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\ValidatorAwareRule;
 use Illuminate\Validation\Validator;
+use RoundlyConsulting\OpeningHours\Enums\ViolationCode;
 use RoundlyConsulting\OpeningHours\Validation\CalendarParser;
 use RoundlyConsulting\OpeningHours\Validation\ParseOptions;
+use RoundlyConsulting\OpeningHours\Validation\Violation;
 
 /**
  * Validates an opening-hours payload and reports EVERY violation under its
- * nested key (`opening_hours.schedules.0.week.monday.1`) with a translated message.
+ * nested key (`opening_hours.schedules.0.week.monday.1`) with a translated message
+ * that names the spot the way an editor sees it ("Schedule 1, Monday, range 2: …").
  */
 final class ValidOpeningHours implements ValidationRule, ValidatorAwareRule
 {
@@ -34,7 +37,7 @@ final class ValidOpeningHours implements ValidationRule, ValidatorAwareRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! is_array($value)) {
-            $fail('opening-hours::validation.invalid_structure')->translate(['path' => $attribute]);
+            $fail((new Violation(ViolationCode::InvalidStructure, ''))->message(subject: $this->displayName($attribute)));
 
             return;
         }
@@ -52,5 +55,10 @@ final class ValidOpeningHours implements ValidationRule, ValidatorAwareRule
 
             $this->validator->errors()->add($key, $violation->message());
         }
+    }
+
+    private function displayName(string $attribute): string
+    {
+        return ucfirst($this->validator?->getDisplayableAttribute($attribute) ?? $attribute);
     }
 }

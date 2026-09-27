@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\OpeningHours\Validation;
 
 use Closure;
+use RoundlyConsulting\OpeningHours\Contracts\DateWindow;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ScheduleData;
@@ -110,7 +111,9 @@ final class DefinitionValidator
 
             foreach (WeekCoverage::overlaps($schedule->week) as [[$dayA, $indexA], [$dayB, $indexB]]) {
                 $this->violate(ViolationCode::Overlap, $this->paths->scheduleRange($i, $dayB, $indexB), [
+                    'value' => $schedule->week->for($dayB)[$indexB]->toString(),
                     'other' => $this->paths->scheduleRange($i, $dayA, $indexA),
+                    'other_value' => $schedule->week->for($dayA)[$indexA]->toString(),
                 ]);
             }
 
@@ -170,10 +173,12 @@ final class DefinitionValidator
             foreach ($buckets[$key] ?? [] as $j) {
                 $other = $data->exceptions[$j];
 
+                $params = ['when' => self::when($exception->window), 'other' => $this->paths->exception($j)];
+
                 if ($exception->window->equals($other->window)) {
-                    $this->violate(ViolationCode::DuplicateException, $path, ['other' => $this->paths->exception($j)]);
+                    $this->violate(ViolationCode::DuplicateException, $path, $params);
                 } elseif ($exception->window->overlaps($other->window)) {
-                    $this->violate(ViolationCode::AmbiguousException, $path, ['other' => $this->paths->exception($j)]);
+                    $this->violate(ViolationCode::AmbiguousException, $path, $params);
                 }
             }
 
@@ -191,11 +196,24 @@ final class DefinitionValidator
                 if ($ranges[$a]->start->minutes < $ranges[$b]->endOffsetMinutes()
                     && $ranges[$b]->start->minutes < $ranges[$a]->endOffsetMinutes()) {
                     $this->violate(ViolationCode::Overlap, $this->paths->exceptionRange($index, $b), [
+                        'value' => $ranges[$b]->toString(),
                         'other' => $this->paths->exceptionRange($index, $a),
+                        'other_value' => $ranges[$a]->toString(),
                     ]);
                 }
             }
         }
+    }
+
+    /**
+     * The dates an exception covers, as the editor typed them: `2026-12-24`,
+     * `2026-12-24 – 2026-12-26` or yearly `12-24`.
+     */
+    private static function when(DateWindow $window): string
+    {
+        ['from' => $from, 'until' => $until] = $window->toArray();
+
+        return $from === $until || $until === null ? (string) $from : "{$from} – {$until}";
     }
 
     private function rangeFields(TimeRange $range, string $path): void

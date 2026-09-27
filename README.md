@@ -369,9 +369,11 @@ $clinic->setOpeningHours(
 ```
 
 Every problem is reported under its nested key (`opening_hours.schedules.0.week.monday.1`) with a
-translated message: invalid times, empty ranges, overlaps (also across midnight and Sunday →
-Monday), two base schedules, ambiguous seasonal windows or exceptions, unknown weekdays, invalid
-timezones, limits… `new ValidOpeningHours(mergeOverlapping: true)` merges overlaps instead.
+translated message that names the spot the way an editor sees it — *"Saturday, range 1 (01:00–02:00)
+overlaps Friday, range 1 (22:00–03:00)."*, *"Exception 1 (date): “2026-02-30” is not a real date; use
+YYYY-MM-DD."*: invalid times, empty ranges, overlaps (also across midnight and Sunday → Monday), two
+base schedules, ambiguous seasonal windows or exceptions, unknown weekdays, invalid timezones,
+limits… `new ValidOpeningHours(mergeOverlapping: true)` merges overlaps instead.
 
 Programmatically: `OpeningHours::validate($payload)` (facade) returns a `ViolationList`;
 `CalendarData::fromArray($payload)` throws `InvalidOpeningHoursException` carrying all of them
