@@ -13,7 +13,7 @@ use RoundlyConsulting\OpeningHours\ValueObjects\Time;
 use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 
 /**
- * Unions overlapping ranges instead of rejecting them (legacy data often
+ * Unions overlapping ranges instead of rejecting them (imported data often
  * overlaps). Weekly ranges merge on the circular week; a union longer than a
  * day is split into touching day-sized ranges. A merged range keeps a label or
  * capacity only when every part agrees on it.

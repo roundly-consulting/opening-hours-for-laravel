@@ -41,7 +41,7 @@ model — DST-correct, native, zero third-party dependencies.
   [validation](#7-validation-and-http-input) · [availability and slots](#8-availability-and-slots) ·
   [API resources](#9-api-resources) · [caching](#10-caching) · [events](#11-events) ·
   [SQL scopes](#12-materialized-intervals-and-sql-scopes-opt-in) · [commands](#13-console-commands) ·
-  [importing week arrays](#14-importing-legacy-week-arrays)
+  [importing week arrays](#14-importing-week-arrays)
 - [Timezones and DST](#timezones-and-dst) · [Security notes](#security-notes) · [Testing](#testing)
 
 ## Requirements
@@ -519,7 +519,7 @@ php artisan opening-hours:materialize --calendar=5 --sync
 A sync without ids replaces schedules and exceptions (the old rows are soft-deleted); schedule
 `opening-hours:prune` daily with `prune.trashed_after_days` to purge them.
 
-### 14. Importing legacy week arrays
+### 14. Importing week arrays
 
 The widely used weekday-keyed array format is read natively:
 

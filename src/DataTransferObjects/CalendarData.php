@@ -42,7 +42,7 @@ final readonly class CalendarData
     }
 
     /**
-     * Parse the legacy weekday-keyed week-array format.
+     * Parse the weekday-keyed week-array format.
      *
      * @param  array<mixed>  $input
      *

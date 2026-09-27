@@ -36,7 +36,7 @@ final class WeekArrayParser
     {
         $violations = [];
         $canonical = ['week' => [], 'exceptions' => []];
-        /** @var array<string, string> $pathMap canonical prefix => legacy prefix */
+        /** @var array<string, string> $pathMap canonical prefix => week-array prefix */
         $pathMap = [];
 
         foreach ($input as $key => $value) {
@@ -91,12 +91,12 @@ final class WeekArrayParser
         foreach ($result->violations as $violation) {
             $params = $violation->params;
 
-            // An overlap names its counterpart by path too: point it at the legacy key as well.
+            // An overlap names its counterpart by path too: point it at the week-array key as well.
             if (isset($params['other'])) {
-                $params['other'] = self::legacyPath((string) $params['other'], $pathMap);
+                $params['other'] = self::weekArrayPath((string) $params['other'], $pathMap);
             }
 
-            $mapped[] = new Violation($violation->code, self::legacyPath($violation->path, $pathMap), $params);
+            $mapped[] = new Violation($violation->code, self::weekArrayPath($violation->path, $pathMap), $params);
         }
 
         return new ParseResult($result->data, new ViolationList([...$violations, ...$mapped]));
@@ -180,9 +180,9 @@ final class WeekArrayParser
     /**
      * @param  array<string, string>  $pathMap
      */
-    private static function legacyPath(string $path, array $pathMap): string
+    private static function weekArrayPath(string $path, array $pathMap): string
     {
-        foreach ($pathMap as $canonical => $legacy) {
+        foreach ($pathMap as $canonical => $prefix) {
             if ($path === $canonical || str_starts_with($path, $canonical.'.')) {
                 $rest = substr($path, strlen($canonical));
 
@@ -190,8 +190,8 @@ final class WeekArrayParser
                     $rest = substr($rest, strlen('.ranges'));
                 }
 
-                // Legacy ranges are strings; point at the range, not the synthesised from/to.
-                return $legacy.(preg_replace('/\.(from|to)$/', '', $rest) ?? $rest);
+                // Week-array ranges are strings; point at the range, not the synthesised from/to.
+                return $prefix.(preg_replace('/\.(from|to)$/', '', $rest) ?? $rest);
             }
         }
 
