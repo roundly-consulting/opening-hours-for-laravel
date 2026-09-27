@@ -1,17 +1,30 @@
 # Changelog
 
-All notable changes to `opening-hours-for-laravel` will be documented in this file.
+All notable changes to `opening-hours-for-laravel` are documented in this file. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/).
 
-## 1.0.0 — unreleased
+## Unreleased
 
-- Opening hours for any Eloquent model: named calendars, weekly schedules (multiple ranges per day,
-  overnight and 24-hour ranges), seasonal schedules with priorities, one-off and yearly exceptions,
-  dynamic exception providers (Easter offsets built in).
-- Immutable query API with one explicit DST boundary rule, verified against a brute-force oracle.
-- Canonical array/DTO input, legacy week-array import, `ValidOpeningHours` / `ValidTimeRange` rules,
-  fluent builders with optimistic concurrency.
-- Availability checks and bookable slots with capacity, buffers, notice and horizon, fed by generic
-  busy-period providers (array, closure, composite, null, Eloquent).
-- Revision-keyed definition cache, events, API resources, schema.org structured data.
-- Opt-in materialized intervals with `whereOpenAt()` / `whereOpenThroughout()` SQL scopes.
-- `opening-hours:show`, `opening-hours:prune`, `opening-hours:materialize` commands; `en` and `sk` translations.
+Initial public release.
+
+### Added
+
+- Opening hours for any Eloquent model via the `HasOpeningHours` trait, with several named
+  calendars per model.
+- Weekly schedules with several ranges per day, overnight ranges, 24-hour and closed days.
+- Seasonal schedules with priorities, and exceptions for single dates, date spans, yearly holidays
+  and movable holidays such as Easter.
+- A fluent builder (`editOpeningHours()`) and array input with optimistic concurrency through
+  revisions.
+- A full query API — `isOpenAt()`, `nextOpen()`, `nextClose()`, `forDate()`, `forWeek()`, open
+  durations — with one explicit rule for daylight-saving changes.
+- schema.org structured data (`toStructuredData()`) and API resources for status and definitions.
+- Availability checks and bookable slots with capacity, buffers, minimum notice and a horizon,
+  fed by any busy-period source, including an Eloquent query.
+- A `ValidOpeningHours` validation rule with readable messages in English and Slovak that name the
+  exact day, range or exception at fault.
+- Per-revision caching and eager loading with `withOpeningHours()`, plus `OpeningHoursUpdated` and
+  `OpeningHoursDeleted` events.
+- Opt-in materialized intervals for SQL scopes such as `whereOpenAt()` and `whereOpenThroughout()`.
+- Artisan commands `opening-hours:show`, `opening-hours:prune` and `opening-hours:materialize`.
