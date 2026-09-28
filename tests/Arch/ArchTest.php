@@ -5,13 +5,15 @@ declare(strict_types=1);
 use RoundlyConsulting\OpeningHours\Models\Calendar;
 use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
 use RoundlyConsulting\OpeningHours\Models\Schedule;
+use RoundlyConsulting\OpeningHours\OpeningHoursManager;
 use RoundlyConsulting\Testing\Arch\ArchPresets;
 
 ArchPresets::strictTypes('RoundlyConsulting\OpeningHours');
 
 /**
- * The three swappable models are the deliberate extension points (pinned below).
- * Pest matches exemptions by PREFIX, so `Schedule::class` also silences
+ * The three swappable models are the deliberate extension points (pinned below),
+ * and the facade root is extended by `OpeningHoursFake` (`toBeFakeable()` pins
+ * that the fake subtypes it). Pest matches exemptions by PREFIX, so `Schedule::class` also silences
  * `ScheduleRange` — the auto-registered shadow check re-asserts it is final.
  * The abstract `OpeningHoursException` base needs no exemption: the preset
  * skips abstract classes.
@@ -20,6 +22,7 @@ ArchPresets::finalByDefault('RoundlyConsulting\OpeningHours', [
     Calendar::class,
     Schedule::class,
     ExceptionRule::class,
+    OpeningHoursManager::class,
 ]);
 
 ArchPresets::swappableModelsAreNotFinal([
@@ -43,6 +46,9 @@ ArchPresets::morphColumnsUseTheSeam(__DIR__.'/../../database/migrations');
 ArchPresets::runtimeRequireIsWhitelisted(__DIR__.'/../../composer.json');
 
 ArchPresets::noDebuggingLeftovers();
+
+/** The owner trait and the models' revision hooks reach behaviour through the manager. */
+ArchPresets::modelsGoThroughTheFacade('RoundlyConsulting\OpeningHours');
 
 arch('the engine is pure: no database access')
     ->expect('RoundlyConsulting\OpeningHours\Engine')

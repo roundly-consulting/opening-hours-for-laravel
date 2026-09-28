@@ -11,11 +11,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use RoundlyConsulting\OpeningHours\Actions\BumpRevisionAction;
 use RoundlyConsulting\OpeningHours\Database\Factories\CalendarFactory;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ScheduleData;
+use RoundlyConsulting\OpeningHours\OpeningHoursManager;
 use RoundlyConsulting\OpeningHours\Support\ExceptionRuleModel;
 use RoundlyConsulting\OpeningHours\Support\RevisionGuard;
 use RoundlyConsulting\OpeningHours\Support\ScheduleModel;
@@ -57,7 +57,7 @@ class Calendar extends Model
                 return;
             }
 
-            $calendar->forceFill(['revision' => app(BumpRevisionAction::class)->execute($calendar->id)])
+            $calendar->forceFill(['revision' => app(OpeningHoursManager::class)->bumpRevision($calendar->id)])
                 ->syncOriginalAttribute('revision');
         });
     }

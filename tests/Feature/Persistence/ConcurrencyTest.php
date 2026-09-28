@@ -8,6 +8,7 @@ use RoundlyConsulting\OpeningHours\Actions\AddExceptionAction;
 use RoundlyConsulting\OpeningHours\Actions\RemoveExceptionAction;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\Exceptions\StaleOpeningHoursException;
+use RoundlyConsulting\OpeningHours\Facades\OpeningHours;
 use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
 use RoundlyConsulting\OpeningHours\Tests\Fixtures\Clinic;
 use RoundlyConsulting\OpeningHours\ValueObjects\AbsoluteWindow;
@@ -54,8 +55,10 @@ it('locks the calendar row inside the transaction on every write action', functi
         ->and($locks[0]['transactionDepth'])->toBeGreaterThanOrEqual(1);
 })->with([
     'sync' => [fn (Clinic $clinic) => $clinic->setOpeningHours(['week' => []])],
-    'add exception' => [fn (Clinic $clinic) => app(AddExceptionAction::class)->execute($clinic->openingHoursCalendar(), new ExceptionData(AbsoluteWindow::single(ld('2026-12-31'))))],
-    'remove exception' => [fn (Clinic $clinic) => app(RemoveExceptionAction::class)->execute($clinic->openingHoursCalendar(), ExceptionRule::query()->firstOrFail()->id)],
+    'add exception' => [fn (Clinic $clinic) => OpeningHours::exceptions($clinic)->closed('2026-12-31')],
+    'remove exception' => [fn (Clinic $clinic) => OpeningHours::exceptions($clinic)->remove(ExceptionRule::query()->firstOrFail()->id)],
+    'add exception action' => [fn (Clinic $clinic) => app(AddExceptionAction::class)->execute($clinic->openingHoursCalendar(), new ExceptionData(AbsoluteWindow::single(ld('2026-12-31'))))],
+    'remove exception action' => [fn (Clinic $clinic) => app(RemoveExceptionAction::class)->execute($clinic->openingHoursCalendar(), ExceptionRule::query()->firstOrFail()->id)],
 ]);
 
 it('refuses a lost update from a second builder of the same revision', function (): void {

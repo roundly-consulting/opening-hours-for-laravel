@@ -19,6 +19,8 @@ use RoundlyConsulting\OpeningHours\Support\ScheduleModel;
  * Housekeeping: soft-deletes one-off exceptions that ended more than N days ago
  * and purges soft-deleted rows older than M days. Chunked by id; each affected
  * live calendar gets exactly one revision bump.
+ *
+ * @internal driven by `opening-hours:prune`
  */
 final readonly class PruneAction
 {

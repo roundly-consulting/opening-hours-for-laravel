@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\OpeningHours\Models\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
-use RoundlyConsulting\OpeningHours\Actions\BumpRevisionAction;
+use RoundlyConsulting\OpeningHours\OpeningHoursManager;
 use RoundlyConsulting\OpeningHours\Support\RevisionGuard;
 
 /**
@@ -35,7 +35,7 @@ trait BumpsCalendarRevision
         $calendarId = $this->calendarIdForRevision();
 
         if ($calendarId !== null) {
-            app(BumpRevisionAction::class)->execute($calendarId);
+            app(OpeningHoursManager::class)->bumpRevision($calendarId);
         }
     }
 

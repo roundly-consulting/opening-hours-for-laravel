@@ -5,17 +5,24 @@ declare(strict_types=1);
 namespace RoundlyConsulting\OpeningHours;
 
 use DateTimeZone;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Model;
+use RoundlyConsulting\OpeningHours\Actions\AddExceptionAction;
 use RoundlyConsulting\OpeningHours\Actions\BumpRevisionAction;
 use RoundlyConsulting\OpeningHours\Actions\DeleteCalendarAction;
+use RoundlyConsulting\OpeningHours\Actions\RemoveExceptionAction;
 use RoundlyConsulting\OpeningHours\Actions\SyncCalendarAction;
 use RoundlyConsulting\OpeningHours\Builders\CalendarBuilder;
 use RoundlyConsulting\OpeningHours\Cache\DefinitionCache;
 use RoundlyConsulting\OpeningHours\Contracts\OpeningHoursOwner;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
+use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\Engine\Compiler;
 use RoundlyConsulting\OpeningHours\Engine\Definition;
+use RoundlyConsulting\OpeningHours\Exceptions\CalendarNotFoundException;
 use RoundlyConsulting\OpeningHours\Models\Calendar;
+use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
+use RoundlyConsulting\OpeningHours\Support\CalendarModel;
 use RoundlyConsulting\OpeningHours\Support\Settings;
 use RoundlyConsulting\OpeningHours\Support\TimezoneResolver;
 use RoundlyConsulting\OpeningHours\Validation\CalendarParser;
@@ -26,18 +33,20 @@ use RoundlyConsulting\OpeningHours\Validation\ViolationList;
  * The facade root. Reads go header → per-request memo `[calendarId:revision]` →
  * definition cache → database; writes go through the actions and drop the
  * owner's stale loaded relation. Bound `scoped`, so the memo never outlives a
- * request or a queued job (Octane-safe).
+ * request or a queued job (Octane-safe). Not final: `OpeningHoursFake` extends it.
  */
-final class OpeningHoursManager
+class OpeningHoursManager
 {
     /** @var array<string, Definition> */
     private array $memo = [];
 
+    /**
+     * Actions are resolved per call, so host rebinds and a later
+     * `Event::fake()` reach them even though this manager lives a whole request.
+     */
     public function __construct(
         private readonly DefinitionCache $cache,
-        private readonly SyncCalendarAction $sync,
-        private readonly DeleteCalendarAction $deleteCalendar,
-        private readonly BumpRevisionAction $bumpRevision,
+        private readonly Container $container,
     ) {}
 
     /**
@@ -120,7 +129,7 @@ final class OpeningHoursManager
     public function sync(Model $owner, CalendarData|array $data, ?string $calendar = null, ?int $expectedRevision = null): OpeningHours
     {
         $data = is_array($data) ? CalendarData::fromArray($data) : $data;
-        $header = $this->sync->execute($owner, $data, $calendar ?? Settings::defaultCalendar(), $expectedRevision);
+        $header = $this->container->make(SyncCalendarAction::class)->execute($owner, $data, $calendar ?? Settings::defaultCalendar(), $expectedRevision);
         $owner->unsetRelation('openingHoursCalendars');
 
         return $this->build($header, $owner);
@@ -137,22 +146,38 @@ final class OpeningHoursManager
     }
 
     /**
-     * Soft-delete the calendar; the next sync restores it.
-     *
-     * @param  Model&OpeningHoursOwner  $owner
+     * Soft-delete the calendar (the next sync restores it), or with `force`
+     * remove it for good — a soft-deleted one included. `false` when absent.
      */
-    public function delete(Model $owner, ?string $calendar = null): bool
+    public function delete(Model $owner, ?string $calendar = null, bool $force = false): bool
     {
-        $header = $this->calendar($owner, $calendar);
+        if ($owner->getKey() === null) {
+            return false;
+        }
+
+        $class = CalendarModel::class();
+        $query = $class::query()->forOwner($owner)->forKey($calendar ?? Settings::defaultCalendar());
+        $header = ($force ? $query->withTrashed() : $query)->first();
 
         if ($header === null) {
             return false;
         }
 
-        $deleted = $this->deleteCalendar->execute($header);
+        $deleted = $this->container->make(DeleteCalendarAction::class)->execute($header, $force);
         $owner->unsetRelation('openingHoursCalendars');
 
         return $deleted;
+    }
+
+    /**
+     * The exceptions of one calendar: add, `closed()`, `open()`, `remove()`
+     * and `all()` — race-safe single-exception writes (see `CalendarExceptions`).
+     *
+     * @param  Model&OpeningHoursOwner  $owner
+     */
+    public function exceptions(Model $owner, ?string $calendar = null): CalendarExceptions
+    {
+        return new CalendarExceptions($this, $owner, $calendar);
     }
 
     /**
@@ -166,7 +191,7 @@ final class OpeningHoursManager
         $header = $this->calendar($owner, $calendar);
 
         if ($header !== null) {
-            $this->bumpRevision->execute($header->id);
+            $this->container->make(BumpRevisionAction::class)->execute($header->id);
         }
 
         $owner->unsetRelation('openingHoursCalendars');
@@ -185,6 +210,9 @@ final class OpeningHoursManager
         $this->memo = [];
     }
 
+    /**
+     * @internal drops one calendar's memo entries; wired to the update/delete events
+     */
     public function forgetCalendar(int $calendarId): void
     {
         foreach (array_keys($this->memo) as $key) {
@@ -200,6 +228,53 @@ final class OpeningHoursManager
     public function definitionData(Calendar $calendar): CalendarData
     {
         return $this->definition($calendar)->data;
+    }
+
+    /**
+     * @internal the write path of `exceptions($owner)->add()`
+     *
+     * @param  Model&OpeningHoursOwner  $owner
+     */
+    public function addException(Model $owner, ExceptionData $data, ?string $calendar = null): ExceptionRule
+    {
+        $rule = $this->container->make(AddExceptionAction::class)->execute($this->liveCalendar($owner, $calendar), $data);
+        $owner->unsetRelation('openingHoursCalendars');
+
+        return $rule;
+    }
+
+    /**
+     * @internal the write path of `exceptions($owner)->remove()`
+     *
+     * @param  Model&OpeningHoursOwner  $owner
+     */
+    public function removeException(Model $owner, int $ruleId, ?string $calendar = null): bool
+    {
+        $removed = $this->container->make(RemoveExceptionAction::class)->execute($this->liveCalendar($owner, $calendar), $ruleId);
+        $owner->unsetRelation('openingHoursCalendars');
+
+        return $removed;
+    }
+
+    /**
+     * @internal the models' revision hook for direct row edits; hosts call `refresh()`
+     */
+    public function bumpRevision(int $calendarId): int
+    {
+        return $this->container->make(BumpRevisionAction::class)->execute($calendarId);
+    }
+
+    /**
+     * A fresh read of the live header (a loaded relation may be stale for a write).
+     *
+     * @param  Model&OpeningHoursOwner  $owner
+     */
+    private function liveCalendar(Model $owner, ?string $calendar): Calendar
+    {
+        $key = $calendar ?? Settings::defaultCalendar();
+        $header = $owner->exists ? $owner->openingHoursCalendars()->where('key', $key)->first() : null;
+
+        return $header ?? throw CalendarNotFoundException::forKey($key);
     }
 
     /**

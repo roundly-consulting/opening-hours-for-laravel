@@ -6,6 +6,7 @@ namespace RoundlyConsulting\OpeningHours\Actions;
 
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
+use RoundlyConsulting\OpeningHours\Exceptions\CalendarNotFoundException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidOpeningHoursException;
 use RoundlyConsulting\OpeningHours\Models\Calendar;
 use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
@@ -16,19 +17,30 @@ use RoundlyConsulting\OpeningHours\Validation\DefinitionValidator;
 
 /**
  * Adds one exception to a calendar, validated against the whole current
- * definition under a row lock, with a single revision bump.
+ * definition under a row lock, with a single revision bump. Unlike a builder
+ * `save()`, it never replaces the rest of the definition, so a concurrent
+ * edit can neither be clobbered by it nor make it stale. An `id` on the data
+ * is ignored: this always creates a new rule.
  */
 final readonly class AddExceptionAction
 {
     public function __construct(private BumpRevisionAction $bumpRevision) {}
 
     /**
+     * @throws CalendarNotFoundException when the calendar was deleted meanwhile
      * @throws InvalidOpeningHoursException
      */
     public function execute(Calendar $calendar, ExceptionData $data): ExceptionRule
     {
+        $data = $data->id === null ? $data : new ExceptionData($data->window, $data->ranges, $data->label, $data->meta);
+
         return RevisionGuard::suppress(fn (): ExceptionRule => CalendarWriter::transaction(function () use ($calendar, $data): ExceptionRule {
             $locked = CalendarWriter::lock($calendar->id);
+
+            if ($locked->trashed()) {
+                throw CalendarNotFoundException::forKey($locked->key);
+            }
+
             $current = $locked->toData();
             $candidate = new CalendarData($current->timezone, $current->label, $current->schedules, [...$current->exceptions, $data], $current->meta);
             $violations = DefinitionValidator::validate($candidate);

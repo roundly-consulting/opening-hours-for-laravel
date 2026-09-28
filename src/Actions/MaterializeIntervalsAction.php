@@ -17,6 +17,8 @@ use RoundlyConsulting\OpeningHours\ValueObjects\LocalDate;
  * periods of `[$from, $to]` (calendar-local days, UTC rows). A full replace
  * keeps the table bounded — trimming only the future would leave every past
  * day behind forever. Trashed calendars hold no intervals.
+ *
+ * @internal driven by `MaterializeIntervalsJob` and `opening-hours:materialize`
  */
 final class MaterializeIntervalsAction
 {

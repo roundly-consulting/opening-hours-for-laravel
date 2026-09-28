@@ -10,7 +10,8 @@ use RoundlyConsulting\OpeningHours\Support\CalendarModel;
 
 /**
  * Atomically increments a calendar's revision — which retires every cached
- * definition of it — and announces the change after commit.
+ * definition of it — and announces the change after commit. Hosts reach it
+ * through `OpeningHours::refresh()`.
  */
 final readonly class BumpRevisionAction
 {

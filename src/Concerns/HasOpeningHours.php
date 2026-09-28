@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use RoundlyConsulting\OpeningHours\Actions\DeleteCalendarAction;
 use RoundlyConsulting\OpeningHours\Builders\CalendarBuilder;
 use RoundlyConsulting\OpeningHours\Contracts\DynamicExceptionProvider;
 use RoundlyConsulting\OpeningHours\Contracts\OpeningHoursOwner;
@@ -50,13 +49,11 @@ trait HasOpeningHours
             }
 
             $class = CalendarModel::class();
-            $calendars = $class::query()->withTrashed()
-                ->where('owner_type', $owner->getMorphClass())
-                ->where('owner_id', $owner->getKey())
-                ->get();
+            $keys = $class::query()->withTrashed()->forOwner($owner)->pluck('key');
+            $manager = app(OpeningHoursManager::class);
 
-            foreach ($calendars as $calendar) {
-                app(DeleteCalendarAction::class)->execute($calendar, force: true);
+            foreach ($keys as $key) {
+                $manager->delete($owner, $key, force: true);
             }
         });
     }

@@ -13,6 +13,7 @@ use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\Enums\Weekday;
 use RoundlyConsulting\OpeningHours\Events\OpeningHoursDeleted;
 use RoundlyConsulting\OpeningHours\Events\OpeningHoursUpdated;
+use RoundlyConsulting\OpeningHours\Exceptions\CalendarNotFoundException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidDateException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidOpeningHoursException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidTimeException;
@@ -58,6 +59,18 @@ it('removes only this calendar\'s exceptions', function (): void {
         ->and(ExceptionRule::query()->count())->toBe(1)
         ->and($calendar->fresh()?->revision)->toBe(2);
 });
+
+it('refuses to add to or remove from a calendar deleted meanwhile', function (Closure $write): void {
+    $calendar = clinicCalendar(['exceptions' => [['date' => '2026-12-24']]]);
+    $rule = ExceptionRule::query()->firstOrFail();
+    app(DeleteCalendarAction::class)->execute($calendar);
+
+    expect(fn () => $write($calendar, $rule))->toThrow(CalendarNotFoundException::class)
+        ->and(ExceptionRule::query()->count())->toBe(1);
+})->with([
+    'add' => [fn (Calendar $calendar) => app(AddExceptionAction::class)->execute($calendar, new ExceptionData(AbsoluteWindow::single(ld('2026-12-31'))))],
+    'remove' => [fn (Calendar $calendar, ExceptionRule $rule) => app(RemoveExceptionAction::class)->execute($calendar, $rule->id)],
+]);
 
 it('soft or force deletes a calendar and drops its intervals', function (): void {
     Event::fake([OpeningHoursDeleted::class]);
