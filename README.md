@@ -36,13 +36,14 @@ model — DST-correct, native, zero third-party dependencies.
 ## Contents
 
 - [Requirements](#requirements) · [Installation](#installation) · [Configuration](#configuration)
-- Usage: [owners](#1-make-a-model-an-owner) · [defining hours](#2-define-opening-hours) ·
-  [querying](#3-query-opening-hours) · [days and weeks](#4-days-and-weeks) ·
-  [spans and durations](#5-spans-and-durations) · [exceptions and holidays](#6-exceptions-and-holidays) ·
-  [validation](#7-validation-and-http-input) · [availability and slots](#8-availability-and-slots) ·
-  [API resources](#9-api-resources) · [caching](#10-caching) · [events](#11-events) ·
-  [SQL scopes](#12-materialized-intervals-and-sql-scopes-opt-in) · [commands](#13-console-commands) ·
-  [importing week arrays](#14-importing-week-arrays)
+- Usage: [owners](#1-make-a-model-an-owner) · [facade, injection and fake](#2-the-facade-injection-and-the-fake) ·
+  [defining hours](#3-define-opening-hours) · [querying](#4-query-opening-hours) ·
+  [days and weeks](#5-days-and-weeks) · [spans and durations](#6-spans-and-durations) ·
+  [exceptions and holidays](#7-exceptions-and-holidays) · [validation](#8-validation-and-http-input) ·
+  [availability and slots](#9-availability-and-slots) · [API resources](#10-api-resources) ·
+  [caching](#11-caching) · [events](#12-events) ·
+  [SQL scopes](#13-materialized-intervals-and-sql-scopes-opt-in) · [commands](#14-console-commands) ·
+  [importing week arrays](#15-importing-week-arrays)
 - [Timezones and DST](#timezones-and-dst) · [Security notes](#security-notes) · [Testing](#testing)
 
 ## Requirements
@@ -181,7 +182,80 @@ final class Clinic extends Model implements OpeningHoursOwner
 An owner can have several named calendars (`default`, `pickup`, `reception`…); every method
 takes an optional calendar key.
 
-### 2. Define opening hours
+### 2. The facade, injection and the fake
+
+Everything goes through `OpeningHours` (the facade over `OpeningHoursManager`); the owner trait's
+methods are shortcuts to the same calls (`$clinic->setOpeningHours()` is `OpeningHours::sync($clinic)`).
+
+```php
+use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
+use RoundlyConsulting\OpeningHours\Facades\OpeningHours;
+
+OpeningHours::sync($clinic, ['week' => ['monday' => ['09:00-17:00']]]); // replace the whole definition
+OpeningHours::for($clinic)->isOpen();                                   // the query object
+OpeningHours::edit($clinic)->closed('2026-12-24')->save();              // builder, optimistic save
+
+// One exception at a time — locked, validated against the whole definition, never stale:
+OpeningHours::exceptions($clinic)->closed('2026-12-24', label: 'Christmas Eve');
+OpeningHours::exceptions($clinic)->open('2026-12-31', ['09:00-13:00']);
+OpeningHours::exceptions($clinic, 'pickup')->add(ExceptionData::make('12-26', label: 'St Stephen'));
+OpeningHours::exceptions($clinic)->all();                               // list<ExceptionData>, with ids
+OpeningHours::exceptions($clinic)->remove($ruleId);                     // false for another calendar's rule
+
+OpeningHours::delete($clinic);                                          // soft; the next sync restores it
+OpeningHours::delete($clinic, 'pickup', force: true);                   // gone for good
+```
+
+Exception writes throw `CalendarNotFoundException` when the owner has no live calendar under the
+key — create it with `sync()` first.
+
+**Without the facade.** Inject the manager — same API — or call an action directly:
+
+```php
+use RoundlyConsulting\OpeningHours\Actions\AddExceptionAction;
+use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
+use RoundlyConsulting\OpeningHours\OpeningHoursManager;
+
+final class CloseForHoliday
+{
+    public function __construct(private OpeningHoursManager $hours) {}
+
+    public function __invoke(Clinic $clinic, string $date): void
+    {
+        $this->hours->exceptions($clinic)->closed($date, label: 'Holiday');
+    }
+}
+
+app(AddExceptionAction::class)->execute($clinic->openingHoursCalendar(), ExceptionData::make('2026-12-24'));
+```
+
+**Faking it in your tests.** `OpeningHours::fake()` records every write — facade, injected manager,
+builder `save()` and the owner trait alike — without touching the database, firing events or
+materializing intervals. Payloads are still validated; reads still hit the database.
+
+```php
+$fake = OpeningHours::fake();
+
+$this->post("/clinics/{$clinic->id}/holidays", ['date' => '2026-12-24']);
+
+$fake->assertExceptionAdded($clinic, callback: fn (ExceptionData $data) => $data->label === 'Holiday');
+$fake->assertNothingSynced();
+```
+
+| Assertion | Opposite |
+|---|---|
+| `assertSynced($owner, ?$calendar, ?fn (CalendarData): bool)` | `assertNothingSynced()` |
+| `assertExceptionAdded($owner, ?$calendar, ?fn (ExceptionData): bool)` | `assertNoExceptionsAdded()` |
+| `assertExceptionRemoved($owner, ?int $ruleId, ?$calendar)` | `assertNoExceptionsRemoved()` |
+| `assertDeleted($owner, ?$calendar, ?bool $force)` | `assertNothingDeleted()` |
+| `assertRefreshed($owner, ?$calendar)` | `assertNothingRefreshed()` |
+| — | `assertNothingWritten()` |
+
+A `null` calendar means the default one. Every assertion also works statically
+(`OpeningHours::assertSynced($clinic)`); `writes()` returns the recorded `RecordedWrite` list for
+custom checks.
+
+### 3. Define opening hours
 
 From an array (the same shape the validation rule accepts; top-level `week` is sugar for one
 base schedule):
@@ -272,7 +346,7 @@ $preview = OpeningHours::make(['week' => ['saturday' => ['22:00-03:00']]], 'Euro
 $built = CalendarBuilder::make()->baseSchedule(fn ($week) => $week->weekdays('09:00-17:00'))->build();
 ```
 
-### 3. Query opening hours
+### 4. Query opening hours
 
 ```php
 use Carbon\CarbonImmutable;
@@ -295,7 +369,7 @@ Navigation is strict (`nextOpen($t)` is after `$t`) and returns `null` when noth
 within `search_days` (pass `searchDays:` to override). An always-open calendar has no
 `nextClose()`. Touching ranges (`09–12` + `12–13`) count as one period for navigation.
 
-### 4. Days and weeks
+### 5. Days and weeks
 
 ```php
 $hours->forDate('2026-12-24')->toString();     // "Closed" or "09:00–12:00" (translated)
@@ -316,7 +390,7 @@ $hours->toStructuredData()->toJson();          // schema.org OpeningHoursSpecifi
 `closedText: ''` for literal output (`toString(',', '-', closedText: '')` → `"09:00-12:00,13:00-18:00"`).
 Group labels: `$group->label()` → `Mon–Fri`.
 
-### 5. Spans and durations
+### 6. Spans and durations
 
 ```php
 $hours->openingPeriodsBetween($monday, $monday->addWeek());   // list<OpeningPeriod>, clipped
@@ -329,7 +403,13 @@ $hours->openDurationBetween($from, $to);                       // CarbonInterval
 
 Span queries longer than `max_query_days` throw `QueryRangeTooLargeException`.
 
-### 6. Exceptions and holidays
+### 7. Exceptions and holidays
+
+Add or remove a single exception with `OpeningHours::exceptions($owner)` (see
+[section 2](#2-the-facade-injection-and-the-fake)). Unlike `edit()->…->save()`, which rewrites the whole
+definition and throws `StaleOpeningHoursException` when someone saved in between, it locks the
+calendar row and adds just that one rule — two admins adding holidays at once both succeed, and a
+builder still holding the old revision is refused rather than wiping the new exception.
 
 Precedence on a date: one-off exception (narrowest span wins) → dynamic providers → yearly
 exception (narrowest wins) → the schedule in effect (highest priority, windowed before base) →
@@ -359,7 +439,7 @@ public function openingHoursDynamicExceptions(): array
 $hours->withDynamicExceptions(new EasterOffsetProvider(50, 'Whit Monday'));
 ```
 
-### 7. Validation and HTTP input
+### 8. Validation and HTTP input
 
 ```php
 use RoundlyConsulting\OpeningHours\Rules\ValidOpeningHours;
@@ -390,7 +470,7 @@ Programmatically: `OpeningHours::validate($payload)` (facade) returns a `Violati
 `CalendarData::fromArray($payload)` throws `InvalidOpeningHoursException` carrying all of them
 (`$e->violations()->toMessageBag('opening_hours')`).
 
-### 8. Availability and slots
+### 9. Availability and slots
 
 Availability knows nothing about bookings; it asks a `BusyPeriodProvider` what is occupied.
 
@@ -449,7 +529,7 @@ counted in calendar days on the local wall clock.
 > constraint (e.g. `Cache::lock("book:{$vet->id}:{$start}")`) — another request may book the same
 > slot between your check and your insert.
 
-### 9. API resources
+### 10. API resources
 
 ```php
 use RoundlyConsulting\OpeningHours\Http\Resources\CalendarResource;
@@ -471,7 +551,7 @@ the canonical input plus `id`, `key`, `revision` and `updated_at`; it can be sub
 
 No routes or controllers ship; endpoints are yours.
 
-### 10. Caching
+### 11. Caching
 
 Compiled definitions are cached per `(calendar, revision)`; every write bumps the revision inside
 its transaction, so there is nothing to invalidate. List pages avoid N+1 with:
@@ -485,14 +565,14 @@ Direct Eloquent edits of schedules, exceptions and ranges — and of a calendar'
 `meta` — bump the revision automatically. After raw SQL edits, or when what `openingHoursTimezone()`
 returns changes, call `OpeningHours::refresh($clinic)` (facade).
 
-### 11. Events
+### 12. Events
 
 Both are dispatched after commit, with scalar payloads (queue-safe):
 
 - `OpeningHoursUpdated(calendarId, ownerType, ownerId, calendarKey, revision)`
 - `OpeningHoursDeleted(calendarId, ownerType, ownerId, calendarKey, forced)`
 
-### 12. Materialized intervals and SQL scopes (opt-in)
+### 13. Materialized intervals and SQL scopes (opt-in)
 
 To filter owners in SQL ("clinics open now"), enable `materialize.enabled`, schedule the command
 daily, and use the scopes:
@@ -509,7 +589,7 @@ Every change queues a unique `MaterializeIntervalsJob` for that calendar. Instan
 `[now − days_behind, now + days_ahead]` throw `OutsideMaterializedHorizonException` instead of
 silently answering "closed".
 
-### 13. Console commands
+### 14. Console commands
 
 ```bash
 php artisan opening-hours:show clinic 42 --calendar=pickup --date=2026-12-20 --days=14 --at=2026-12-24T10:00:00+01:00
@@ -520,7 +600,7 @@ php artisan opening-hours:materialize --calendar=5 --sync
 A sync without ids replaces schedules and exceptions (the old rows are soft-deleted); schedule
 `opening-hours:prune` daily with `prune.trashed_after_days` to purge them.
 
-### 14. Importing week arrays
+### 15. Importing week arrays
 
 The widely used weekday-keyed array format is read natively:
 
@@ -545,10 +625,11 @@ past midnight) and `filters` is rejected (use a `DynamicExceptionProvider`).
 
 ### Other facade methods
 
-`OpeningHours::for($owner, $key)`, `calendar()`, `has()`, `edit()`, `sync()`, `make()`, `delete()`
-(soft; the next sync restores it), `refresh()`, `validate()`, `flushMemo()`. The query object and the
-facade share the name `OpeningHours`; alias one where you need both
-(`use RoundlyConsulting\OpeningHours\Facades\OpeningHours as Hours;`).
+`OpeningHours::for($owner, $key)`, `calendar()`, `has()`, `edit()`, `sync()`, `make()`,
+`exceptions()`, `delete()` (soft by default, `force: true` purges), `refresh()`, `validate()`,
+`definitionData($header)` (the stored definition through memo and cache), `flushMemo()` and
+`fake()`. The query object and the facade share the name `OpeningHours`; alias one where you need
+both (`use RoundlyConsulting\OpeningHours\Facades\OpeningHours as Hours;`).
 
 ## Timezones and DST
 
@@ -567,6 +648,8 @@ clock reads that time or later.
 ## Security notes
 
 - Ids in a sync payload must belong to the calendar being written; foreign ids are rejected.
+  `OpeningHours::exceptions($owner)->remove($id)` only touches that calendar's rules — any other
+  id returns `false`.
 - Labels are returned raw — escape them in your templates.
 - `meta` is hidden from resources by default; `php artisan about` shows the cache store only as
   `default`/`custom`.

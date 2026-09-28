@@ -28,3 +28,10 @@ Initial public release.
   `OpeningHoursDeleted` events.
 - Opt-in materialized intervals for SQL scopes such as `whereOpenAt()` and `whereOpenThroughout()`.
 - Artisan commands `opening-hours:show`, `opening-hours:prune` and `opening-hours:materialize`.
+- The `OpeningHours` facade covers the whole API: `OpeningHours::exceptions($owner)` adds
+  (`closed()`, `open()`, `add()`), lists (`all()`) and removes (`remove()`) single exceptions
+  race-safely — without rewriting the rest of the definition — and `delete()` takes `force: true`.
+- `OpeningHours::fake()` records every write (facade, injected manager, builder and owner trait)
+  without touching the database, with `assertSynced()`, `assertExceptionAdded()`,
+  `assertExceptionRemoved()`, `assertDeleted()`, `assertRefreshed()` and their opposites.
+- `ExceptionData::make()` builds an exception from dates, month-days and range strings.
