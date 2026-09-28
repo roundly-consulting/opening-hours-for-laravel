@@ -628,7 +628,9 @@ $clinic->setOpeningHours($data);
 ```
 
 `data` (string ⇒ label, array ⇒ meta) is kept, `overflow` is ignored (overnight ranges always run
-past midnight) and `filters` is rejected (use a `DynamicExceptionProvider`).
+past midnight) and `filters` is rejected (use a `DynamicExceptionProvider`). With `mergeOverlapping`,
+a range that overlaps nothing is kept exactly as given; a merged range keeps a label, capacity or
+meta entry only when every range it absorbed agrees on it.
 
 ### Other facade methods
 

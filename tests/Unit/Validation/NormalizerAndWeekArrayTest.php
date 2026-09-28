@@ -16,6 +16,7 @@ use RoundlyConsulting\OpeningHours\Validation\Violation;
 use RoundlyConsulting\OpeningHours\Validation\ViolationList;
 use RoundlyConsulting\OpeningHours\Validation\WeekArrayParser;
 use RoundlyConsulting\OpeningHours\ValueObjects\AbsoluteWindow;
+use RoundlyConsulting\OpeningHours\ValueObjects\Time;
 use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 
 function weekOf(array $days): WeekData
@@ -53,6 +54,41 @@ it('merges overlapping and touching weekly ranges, keeping shared labels', funct
     expect(rangesText($merged))->toBe(['monday' => ['09:00-14:00', '15:00-17:00']])
         ->and($merged->ranges[1][0]->label)->toBe('A')
         ->and($merged->ranges[1][1]->label)->toBeNull();
+});
+
+it('keeps meta on untouched ranges and only the entries every merged part agrees on', function (): void {
+    $week = new WeekData([1 => [
+        new TimeRange(Time::fromString('09:00'), Time::fromString('12:00'), meta: ['room' => 'A', 'floor' => 1]),
+        new TimeRange(Time::fromString('11:00'), Time::fromString('13:00'), meta: ['room' => 'A', 'floor' => 2]),
+        new TimeRange(Time::fromString('14:00'), Time::fromString('18:00'), 'Afternoon', 3, ['room' => 'B']),
+        new TimeRange(Time::fromString('20:00'), Time::fromString('21:00')),
+        new TimeRange(Time::fromString('20:30'), Time::fromString('22:00'), meta: ['room' => 'C']),
+    ], 7 => [new TimeRange(Time::fromString('22:00'), Time::fromString('02:00'), meta: ['night' => true])]]);
+    $merged = RangeNormalizer::week($week);
+
+    expect(rangesText($merged))->toBe(['monday' => ['09:00-13:00', '14:00-18:00', '20:00-22:00'], 'sunday' => ['22:00-02:00']])
+        ->and($merged->ranges[1][0]->meta)->toBe(['room' => 'A'])
+        ->and([$merged->ranges[1][1]->label, $merged->ranges[1][1]->capacity, $merged->ranges[1][1]->meta])->toBe(['Afternoon', 3, ['room' => 'B']])
+        ->and($merged->ranges[1][2]->meta)->toBeNull()
+        ->and($merged->ranges[7][0]->meta)->toBe(['night' => true]);
+
+    $day = RangeNormalizer::day([
+        new TimeRange(Time::fromString('09:00'), Time::fromString('10:00'), meta: ['room' => 'A']),
+        new TimeRange(Time::fromString('09:30'), Time::fromString('11:00'), meta: ['room' => 'A', 'x' => 1]),
+        new TimeRange(Time::fromString('13:00'), Time::fromString('18:00'), meta: ['room' => 'B']),
+    ]);
+
+    expect(array_map(fn (TimeRange $r) => $r->meta, $day))->toBe([['room' => 'A'], ['room' => 'B']]);
+});
+
+it('keeps range meta through mergeOverlapping parsing and a fully covered week', function (): void {
+    $data = CalendarData::fromArray(['week' => ['monday' => ['09:00-12:00', ['from' => '13:00', 'to' => '18:00', 'meta' => ['room' => 'A']]]]], new ParseOptions(mergeOverlapping: true));
+    $imported = CalendarData::fromWeekArray(['monday' => ['09:00-12:00', ['hours' => '13:00-18:00', 'data' => ['room' => 'A']]]], new ParseOptions(mergeOverlapping: true));
+    $allWeek = RangeNormalizer::week(new WeekData(array_fill(1, 7, [new TimeRange(Time::fromString('00:00'), Time::fromString('24:00'), meta: ['all' => true])])));
+
+    expect($data->schedules[0]->week->ranges[1][1]->meta)->toBe(['room' => 'A'])
+        ->and($imported->schedules[0]->week->ranges[1][1]->meta)->toBe(['room' => 'A'])
+        ->and($allWeek->ranges[3][0]->meta)->toBe(['all' => true]);
 });
 
 it('merges across midnight and the Sunday wrap', function (): void {

@@ -15,8 +15,9 @@ use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 /**
  * Unions overlapping ranges instead of rejecting them (imported data often
  * overlaps). Weekly ranges merge on the circular week; a union longer than a
- * day is split into touching day-sized ranges. A merged range keeps a label or
- * capacity only when every part agrees on it.
+ * day is split into touching day-sized ranges. A range that overlaps nothing
+ * is kept as it was; a merged range keeps a label, capacity or meta entry only
+ * when every part agrees on it.
  */
 final class RangeNormalizer
 {
@@ -91,7 +92,7 @@ final class RangeNormalizer
         foreach ($merged as [$start, $end, $parts]) {
             if ($end - $start >= WeekCoverage::WEEK_MINUTES) {
                 for ($iso = 1; $iso <= 7; $iso++) {
-                    $result[$iso] = [TimeRange::allDay(...self::shared($parts))];
+                    $result[$iso] = [new TimeRange(new Time(0), new Time(Time::END_OF_DAY), ...self::shared($parts))];
                 }
 
                 return new WeekData($result);
@@ -187,7 +188,7 @@ final class RangeNormalizer
 
     /**
      * @param  list<TimeRange>  $parts
-     * @return array{label: ?string, capacity: ?int}
+     * @return array{label: ?string, capacity: ?int, meta: array<string, mixed>|null}
      */
     private static function shared(array $parts): array
     {
@@ -197,6 +198,30 @@ final class RangeNormalizer
         return [
             'label' => count($labels) === 1 ? $parts[0]->label : null,
             'capacity' => count($capacities) === 1 ? $parts[0]->capacity : null,
+            'meta' => count($parts) === 1 ? $parts[0]->meta : self::sharedMeta($parts),
         ];
+    }
+
+    /**
+     * Only entries with the same value in every part — a merged range must not
+     * claim, say, a room that applied to just one of the ranges it absorbed.
+     *
+     * @param  list<TimeRange>  $parts
+     * @return array<string, mixed>|null
+     */
+    private static function sharedMeta(array $parts): ?array
+    {
+        $meta = $parts[0]->meta ?? [];
+
+        foreach ($parts as $part) {
+            $other = $part->meta ?? [];
+            $meta = array_filter(
+                $meta,
+                static fn (mixed $value, int|string $key): bool => array_key_exists($key, $other) && $other[$key] === $value,
+                ARRAY_FILTER_USE_BOTH,
+            );
+        }
+
+        return $meta === [] ? null : $meta;
     }
 }
