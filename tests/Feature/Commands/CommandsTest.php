@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
 use RoundlyConsulting\OpeningHours\Jobs\MaterializeIntervalsJob;
 use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
@@ -55,6 +56,22 @@ it('prunes with options, config defaults, a dry run, or nothing configured', fun
     $this->artisan('opening-hours:prune')->expectsOutputToContain('Pruned 1 past exception(s) and 0 soft-deleted row(s).')->assertSuccessful();
 
     expect(ExceptionRule::query()->count())->toBe(1);
+});
+
+it('prunes with integer options from Artisan::call and refuses invalid ones', function (): void {
+    CarbonImmutable::setTestNow('2026-09-26 12:00:00');
+    $clinic = Clinic::query()->create();
+    $clinic->setOpeningHours(['exceptions' => [['date' => '2026-01-01'], ['date' => '2026-12-24']]]);
+
+    expect(Artisan::call('opening-hours:prune', ['--exceptions-after-days' => 30, '--dry-run' => true]))->toBe(0)
+        ->and(Artisan::output())->toContain('Would prune 1 past exception(s)');
+
+    $this->artisan('opening-hours:prune', ['--exceptions-after-days' => 'abc'])
+        ->expectsOutputToContain('--exceptions-after-days must be a whole number of days')->assertFailed();
+    $this->artisan('opening-hours:prune', ['--trashed-after-days' => '-5'])
+        ->expectsOutputToContain('--trashed-after-days must be a whole number of days')->assertFailed();
+
+    expect(ExceptionRule::query()->count())->toBe(2);
 });
 
 it('treats an empty prune env value as off', function (): void {
