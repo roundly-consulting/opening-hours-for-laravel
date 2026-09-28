@@ -512,13 +512,20 @@ $busy = EloquentBusyPeriodProvider::for(
         Appointment::query()->where('vet_id', $vet->id)->whereNotIn('status', ['cancelled']),
     )
     ->columns(start: 'starts_at', end: 'ends_at')
-    ->durationColumn('duration_minutes')   // rows with a NULL end
-    ->defaultDuration(minutes: 30)         // … and no duration either
+    ->durationColumn('duration_minutes')   // rows with a NULL end last this many minutes
+    ->defaultDuration(minutes: 30)         // … or this, when the duration is NULL too
+    ->maxNullEndMinutes(480)               // optional: the longest possible duration
     ->weightColumn(null)                   // or a column with capacity units
     ->storedIn('UTC');                     // timezone of the raw column values
 
 $clinic->openingHours()->availability()->withBusyPeriods($busy)->isAvailable($start, $end);
 ```
+
+A row with a NULL end can only overlap a window if it started at most its duration before it.
+Without `maxNullEndMinutes()` the provider finds that bound itself with one extra
+`MAX(duration_minutes)` query per read (or uses `defaultDuration` when there is no duration
+column); set it to skip that query — but never lower than your longest duration, or longer
+bookings are missed and show as free.
 
 Capacity: open capacity is `range.capacity ?? availability capacity ?? 1` (overlapping ranges take
 the maximum); a booking fits when `usage + weight ≤ capacity` at every moment of

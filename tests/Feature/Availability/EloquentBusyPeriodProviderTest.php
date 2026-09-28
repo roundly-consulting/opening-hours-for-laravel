@@ -100,3 +100,34 @@ it('reads raw values in app.timezone by default, not in the calendar fallback ti
 
     expect(busyBetween($provider, '2026-09-28T00:00:00+00:00', '2026-09-29T00:00:00+00:00'))->toBe([['08:00', '09:00', 1]]);
 });
+
+it('finds NULL-end rows longer than the default duration without maxNullEndMinutes', function (): void {
+    // An 8-hour open-ended rental started 6 hours before the queried window.
+    Booking::query()->insert([
+        ['starts_at' => '2026-09-30 06:00:00', 'ends_at' => null, 'duration_minutes' => 480, 'seats' => null, 'status' => 'confirmed'],
+        ['starts_at' => '2026-09-29 20:00:00', 'ends_at' => null, 'duration_minutes' => 60, 'seats' => null, 'status' => 'confirmed'],
+    ]);
+
+    $provider = bookings()->durationColumn('duration_minutes')->defaultDuration(30);
+
+    expect(busyBetween($provider, '2026-09-30T12:00:00+00:00', '2026-09-30T12:30:00+00:00'))->toBe([['06:00', '14:00', 1]]);
+});
+
+it('trusts an explicit maxNullEndMinutes as the NULL-end lookback', function (): void {
+    Booking::query()->insert([
+        ['starts_at' => '2026-09-30 06:00:00', 'ends_at' => null, 'duration_minutes' => 480, 'seats' => null, 'status' => 'confirmed'],
+    ]);
+
+    $provider = bookings()->durationColumn('duration_minutes')->defaultDuration(30);
+
+    expect(busyBetween((clone $provider)->maxNullEndMinutes(480), '2026-09-30T12:00:00+00:00', '2026-09-30T12:30:00+00:00'))->toBe([['06:00', '14:00', 1]])
+        ->and(busyBetween((clone $provider)->maxNullEndMinutes(60), '2026-09-30T12:00:00+00:00', '2026-09-30T12:30:00+00:00'))->toBe([]);
+});
+
+it('derives the lookback from the default duration when there is no duration column', function (): void {
+    Booking::query()->insert([
+        ['starts_at' => '2026-09-30 10:00:00', 'ends_at' => null, 'duration_minutes' => 480, 'seats' => null, 'status' => 'confirmed'],
+    ]);
+
+    expect(busyBetween(bookings()->defaultDuration(300), '2026-09-30T14:00:00+00:00', '2026-09-30T14:30:00+00:00'))->toBe([['10:00', '15:00', 1]]);
+});

@@ -22,7 +22,8 @@ use RoundlyConsulting\OpeningHours\ValueObjects\LocalDate;
 /**
  * Busy periods from any Eloquent query (bookings, appointments…) without the
  * package knowing the model. Rows with a NULL end last `durationColumn` minutes,
- * else `defaultDuration`. Bindings are sent as strings in `storedIn`'s timezone
+ * else `defaultDuration`; how far back such rows are looked for is the longest
+ * stored duration (one MAX query) unless `maxNullEndMinutes` states it. Bindings are sent as strings in `storedIn`'s timezone
  * (a Carbon binding would be formatted in its own), and raw values are resolved
  * with the same first-occurrence DST rule as opening hours. Column names are
  * allowlist-validated; nothing is ever interpolated from user input.
@@ -97,7 +98,8 @@ final class EloquentBusyPeriodProvider implements BusyPeriodProvider
     }
 
     /**
-     * How far back to look for NULL-end rows; at least the largest duration value.
+     * How far back to look for NULL-end rows. Must be at least the longest duration
+     * a row can have; setting it skips the MAX(duration) query run on every read.
      */
     public function maxNullEndMinutes(int $minutes): self
     {
@@ -125,7 +127,7 @@ final class EloquentBusyPeriodProvider implements BusyPeriodProvider
         $zone = $this->storedIn ?? self::appTimezone();
         // Wall-clock bindings are ambiguous around DST changes; widen the SQL window
         // by a few hours and re-check every row precisely in PHP below.
-        $lookback = $start->subMinutes($this->maxNullEndMinutes ?? $this->defaultDuration)->subHours(self::SLACK_HOURS);
+        $lookback = $start->subMinutes($this->nullEndLookback($end, $zone))->subHours(self::SLACK_HOURS);
         $limit = Limits::busyPeriods();
 
         $columns = array_values(array_filter([$this->startColumn, $this->endColumn, $this->durationColumn, $this->weightColumn]));
@@ -177,6 +179,30 @@ final class EloquentBusyPeriodProvider implements BusyPeriodProvider
         }
 
         return $periods;
+    }
+
+    /**
+     * A NULL-end row can only reach the window if it started at most its duration
+     * before it. Without a declared bound, the longest stored duration decides —
+     * a fixed guess would silently drop long bookings and allow double booking.
+     */
+    private function nullEndLookback(CarbonImmutable $end, DateTimeZone $zone): int
+    {
+        if ($this->maxNullEndMinutes !== null) {
+            return $this->maxNullEndMinutes;
+        }
+
+        if ($this->durationColumn === null) {
+            return $this->defaultDuration;
+        }
+
+        $longest = (clone $this->query)->toBase()
+            ->reorder()
+            ->whereNull($this->endColumn)
+            ->where($this->startColumn, '<', self::binding($end->addHours(self::SLACK_HOURS), $zone))
+            ->max($this->durationColumn);
+
+        return max($this->defaultDuration, is_numeric($longest) ? (int) $longest : 0);
     }
 
     /**
