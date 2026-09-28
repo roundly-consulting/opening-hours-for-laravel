@@ -332,6 +332,10 @@ $clinic->editOpeningHours()
     ->save();
 ```
 
+`baseSchedule(fn …)` edits the current base schedule: the closure's builder starts from its days,
+label, priority and meta, a day setter replaces that day and `closedOn()` clears it (pass a
+`ScheduleData` to replace the base schedule whole). `schedule(fn …)` always adds a new schedule.
+
 `ScheduleBuilder` also has `monday()`…`sunday()`, `weekend()`, `everyDay()`, `days([...], ...)`,
 `open24Hours(...)`, `between()`, `from()`, `until()`, `meta()`. `CalendarBuilder` also has
 `label()`, `meta()`, `removeSchedule($id)`, `removeException($id)`, `withoutSchedules()`,

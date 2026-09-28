@@ -103,7 +103,10 @@ final class CalendarBuilder
     }
 
     /**
-     * Replace (or create) the base schedule — the one without a window.
+     * Edit (or create) the base schedule — the one without a window. A closure
+     * gets a builder seeded with the current base schedule (days, label,
+     * priority, meta, id), so it changes only what it touches; `ScheduleData`
+     * replaces it whole.
      *
      * @param  (Closure(ScheduleBuilder): (ScheduleBuilder|null|void))|ScheduleData  $schedule
      */
@@ -119,7 +122,7 @@ final class CalendarBuilder
         }
 
         if ($schedule instanceof Closure) {
-            $builder = ScheduleBuilder::make()->id($index === null ? null : $this->schedules[$index]->id);
+            $builder = $index === null ? ScheduleBuilder::make() : ScheduleBuilder::fromData($this->schedules[$index]);
             $result = $schedule($builder);
             $schedule = ($result instanceof ScheduleBuilder ? $result : $builder)->withoutWindow()->toData();
         }

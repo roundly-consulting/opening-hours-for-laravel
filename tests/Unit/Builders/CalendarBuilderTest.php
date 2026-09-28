@@ -72,6 +72,22 @@ it('replaces the base schedule but adds seasonal ones', function (): void {
         ->and($data->schedules[2]->meta)->toBe(['x' => 1]);
 });
 
+it('edits the existing base schedule in a baseSchedule closure', function (): void {
+    $builder = CalendarBuilder::make(CalendarData::fromArray([
+        'schedules' => [
+            ['id' => 7, 'label' => 'Regular', 'priority' => 5, 'meta' => ['k' => 'v'], 'week' => ['monday' => ['09:00-17:00'], 'sunday' => ['10:00-12:00']]],
+            ['id' => 8, 'label' => 'Summer', 'window' => ['from' => '07-01', 'until' => '08-31'], 'week' => ['monday' => ['07:00-14:00']]],
+        ],
+    ]));
+
+    $base = $builder->baseSchedule(fn (ScheduleBuilder $week) => $week->saturday('09:00-12:00')->closedOn(Weekday::Sunday))->toData()->baseSchedule();
+
+    expect($base?->id)->toBe(7)
+        ->and([$base?->label, $base?->priority, $base?->meta])->toBe(['Regular', 5, ['k' => 'v']])
+        ->and(array_map(fn (array $ranges) => array_map(fn (TimeRange $r) => $r->toString('-'), $ranges), $base?->week->ranges ?? []))
+        ->toBe([1 => ['09:00-17:00'], 6 => ['09:00-12:00']]);
+});
+
 it('supports every schedule builder shortcut', function (): void {
     $schedule = ScheduleBuilder::make()
         ->monday('08:00-09:00')->tuesday('08:00-09:00')->wednesday('08:00-09:00')->thursday('08:00-09:00')
