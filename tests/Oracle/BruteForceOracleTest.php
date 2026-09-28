@@ -72,7 +72,9 @@ it('agrees with the brute-force oracle around every transition', function (strin
                     continue;
                 }
 
-                $actual = $hours->{$method}($instant, 4)?->getTimestamp();
+                // The oracle is reliable a day past the 72-hour window, so an answer can
+                // sit up to 5 local days away (4 real days when Apia skips one).
+                $actual = $hours->{$method}($instant, 5)?->getTimestamp();
 
                 if ($actual !== $expected) {
                     throw new RuntimeException(sprintf('%s mismatch: calendar %d, %s at %s: expected %s, got %s',

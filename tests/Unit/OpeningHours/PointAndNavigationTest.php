@@ -171,6 +171,26 @@ it('returns null beyond the search window', function (): void {
         ->and($hours->nextPeriod(at('2026-09-26 12:00'), searchDays: 30))->toBeNull();
 });
 
+it('searches exactly searchDays local days forward and backward', function (): void {
+    $hours = hours(['week' => ['wednesday' => ['09:00-17:00'], 'friday' => ['22:00-02:00']]]);
+    $monday = at('2026-09-28 12:00');
+
+    expect($hours->nextOpen($monday, 1))->toBeNull()
+        ->and($hours->nextPeriod($monday, 1))->toBeNull()
+        ->and($hours->nextClose($monday, 1))->toBeNull()
+        ->and($hours->nextOpen($monday, 2)?->format('Y-m-d H:i'))->toBe('2026-09-30 09:00')
+        ->and($hours->nextClose($monday, 2)?->format('Y-m-d H:i'))->toBe('2026-09-30 17:00')
+        ->and($hours->previousOpen(at('2026-09-25 12:00'), 1))->toBeNull()
+        ->and($hours->previousOpen(at('2026-09-25 12:00'), 2)?->format('Y-m-d H:i'))->toBe('2026-09-23 09:00')
+        ->and($hours->previousOpen($monday, 2))->toBeNull()
+        ->and($hours->previousOpen($monday, 3)?->format('Y-m-d H:i'))->toBe('2026-09-25 22:00')
+        ->and($hours->previousClose($monday, 2)?->format('Y-m-d H:i'))->toBe('2026-09-26 02:00')
+        // A run that opens inside the window closes after it: the opening is found,
+        // and the lookahead day still knows where it ends.
+        ->and($hours->nextOpen(at('2026-10-01 12:00'), 1)?->format('Y-m-d H:i'))->toBe('2026-10-02 22:00')
+        ->and($hours->nextClose(at('2026-10-02 23:00'), 1)?->format('Y-m-d H:i'))->toBe('2026-10-03 02:00');
+});
+
 it('treats an empty calendar as always closed', function (): void {
     $empty = OpeningHours::empty('UTC');
 

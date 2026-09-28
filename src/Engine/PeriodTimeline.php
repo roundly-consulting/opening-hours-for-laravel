@@ -113,6 +113,16 @@ final class PeriodTimeline
     }
 
     /**
+     * The end of a forward scan's last day: `forward()` reads one lookahead day
+     * past it only to learn where a run open at this edge ends, so a run
+     * starting at or after it lies outside the search window.
+     */
+    public function forwardEdge(int $from, int $limitDays): int
+    {
+        return $this->clock->boundaryAt($this->clock->localEpochDay($from) + $limitDays + 1, 0);
+    }
+
+    /**
      * Coalesced runs with `start < $from`, latest first, scanning `$limitDays`
      * local days before the day of `$from`.
      *

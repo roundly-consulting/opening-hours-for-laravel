@@ -213,7 +213,8 @@ final class OpeningHours
     // ───────────────────────────── Navigation ─────────────────────────────
 
     /**
-     * The next opening strictly after `$after`, or null within the search window.
+     * The next opening strictly after `$after`, within `$searchDays` local days
+     * after its day (default `search_days`); null when there is none.
      */
     public function nextOpen(?DateTimeInterface $after = null, ?int $searchDays = null): ?CarbonImmutable
     {
@@ -231,9 +232,10 @@ final class OpeningHours
         }
 
         $instant = ($after ?? Clock::now())->getTimestamp();
+        $limit = $searchDays ?? Settings::searchDays();
 
-        foreach ($this->timeline->forward($instant, $searchDays ?? Settings::searchDays()) as $run) {
-            return $run->endsAfterScan ? null : $this->instant($run->end);
+        foreach ($this->timeline->forward($instant, $limit) as $run) {
+            return $run->endsAfterScan || $run->start >= $this->timeline->forwardEdge($instant, $limit) ? null : $this->instant($run->end);
         }
 
         return null;
@@ -279,8 +281,14 @@ final class OpeningHours
     public function nextPeriod(?DateTimeInterface $after = null, ?int $searchDays = null): ?OpeningPeriod
     {
         $instant = ($after ?? Clock::now())->getTimestamp();
+        $limit = $searchDays ?? Settings::searchDays();
+        $edge = $this->timeline->forwardEdge($instant, $limit);
 
-        foreach ($this->timeline->forward($instant, $searchDays ?? Settings::searchDays()) as $run) {
+        foreach ($this->timeline->forward($instant, $limit) as $run) {
+            if ($run->start >= $edge) {
+                return null;
+            }
+
             if ($run->start > $instant) {
                 return $this->period($run);
             }

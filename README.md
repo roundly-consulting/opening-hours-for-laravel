@@ -371,8 +371,10 @@ $hours->withOutputTimezone('UTC')->nextClose();           // same answer, report
 $clinic->openingHours('pickup')->isOpenDuring($from, $to);
 ```
 
-Navigation is strict (`nextOpen($t)` is after `$t`) and returns `null` when nothing is found
-within `search_days` (pass `searchDays:` to override). An always-open calendar has no
+Navigation is strict (`nextOpen($t)` is after `$t`) and looks `search_days` local days after (or
+before) the day of `$t` — pass `searchDays:` to override; nothing found there returns `null`
+(`nextOpen($monday, searchDays: 1)` sees Monday and Tuesday). A period that opens inside the window
+still reports its real `nextClose()`, even past midnight. An always-open calendar has no
 `nextClose()`. Touching ranges (`09–12` + `12–13`) count as one period for navigation.
 
 ### 5. Days and weeks

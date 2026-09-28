@@ -76,8 +76,9 @@ return [
     | Search window
     |--------------------------------------------------------------------------
     |
-    | nextOpen() / nextClose() / previousOpen() / previousClose() scan at most
-    | this many days and return null when nothing is found (1..3660).
+    | nextOpen() / nextClose() / previousOpen() / previousClose() and
+    | nextAvailableSlot() look this many local days after (or before) the day
+    | they start from and return null when nothing is found (1..3660).
     |
     */
 
