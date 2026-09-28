@@ -9,7 +9,7 @@ use RoundlyConsulting\OpeningHours\Engine\PeriodTimeline;
 /**
  * Two step functions over a window, merged once: open capacity (from the RAW
  * opening periods — `range.capacity ?? default`, overlapping periods take the
- * max; `$outside` where closed) and usage (sum of overlapping busy weights).
+ * max; 0 where closed) and usage (sum of overlapping busy weights).
  * Each query is a binary search plus a short scan.
  *
  * @internal
@@ -37,7 +37,6 @@ final class CapacityTimeline
         int $from,
         int $until,
         int $defaultCapacity,
-        int $outside,
     ) {
         /** @var array<int, list<array{string, int, int}>> $events instant => [[kind, sign, value]] */
         $events = [$from => [], $until => []];
@@ -88,23 +87,33 @@ final class CapacityTimeline
 
             $this->starts[] = $instant;
             $this->open[] = $openCaps !== [];
-            $this->capacity[] = $openCaps === [] ? $outside : max(array_keys($openCaps));
+            $this->capacity[] = $openCaps === [] ? 0 : max(array_keys($openCaps));
             $this->usage[] = $usage;
         }
     }
 
     /**
-     * The smallest `capacity − usage` over `[$from, $until)`.
+     * The smallest `capacity − usage` over `[$from, $until)`; closed segments
+     * count `$closedCapacity` instead when it is given.
      */
-    public function minRemaining(int $from, int $until): int
+    public function minRemaining(int $from, int $until, ?int $closedCapacity = null): int
     {
         $min = PHP_INT_MAX;
 
         for ($i = $this->segmentAt($from), $n = count($this->starts); $i < $n && $this->starts[$i] < $until; $i++) {
-            $min = min($min, $this->capacity[$i] - $this->usage[$i]);
+            $capacity = $closedCapacity !== null && ! $this->open[$i] ? $closedCapacity : $this->capacity[$i];
+            $min = min($min, $capacity - $this->usage[$i]);
         }
 
         return $min === PHP_INT_MAX ? 0 : $min;
+    }
+
+    /**
+     * The open capacity at an instant (0 where closed).
+     */
+    public function capacityAt(int $instant): int
+    {
+        return $this->capacity[$this->segmentAt($instant)];
     }
 
     /**

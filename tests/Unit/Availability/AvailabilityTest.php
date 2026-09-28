@@ -76,6 +76,26 @@ it('keeps buffers inside opening hours by default', function (): void {
         ->and($outside->check(at('2026-09-28 09:00'), at('2026-09-28 09:30'))->reason)->toBe(UnavailableReason::Busy);
 });
 
+it('gives a buffer outside opening hours the capacity of the range it adjoins', function (): void {
+    $availability = hours(['week' => [
+        'monday' => [['from' => '09:00', 'to' => '12:00', 'capacity' => 3], ['from' => '12:00', 'to' => '13:00', 'capacity' => 2]],
+    ]])->availability()->at(at('2026-09-27 12:00'))->buffers(before: 15, after: 15, withinOpeningHours: false);
+    $booked = $availability->withBusyPeriods([busy('2026-09-28 08:45', '2026-09-28 08:55', weight: 2), busy('2026-09-28 13:00', '2026-09-28 13:10')]);
+
+    $opening = $availability->check(at('2026-09-28 09:00'), at('2026-09-28 10:00'), weight: 2);
+    $closing = $availability->check(at('2026-09-28 12:00'), at('2026-09-28 13:00'), weight: 2);
+    $slots = $availability->slots('2026-09-28', '2026-09-28')->duration(60)->step(60)->weight(2)->get();
+
+    expect([$opening->available, $opening->reason, $opening->remainingCapacity])->toBe([true, null, 3])
+        ->and([$closing->available, $closing->remainingCapacity])->toBe([true, 2])
+        ->and($slots->first()->start->format('H:i'))->toBe('09:00')
+        ->and($slots)->toHaveCount(4)
+        ->and($booked->check(at('2026-09-28 09:00'), at('2026-09-28 10:00'))->remainingCapacity)->toBe(1)
+        ->and($booked->isAvailable(at('2026-09-28 09:00'), at('2026-09-28 10:00'), weight: 2))->toBeFalse()
+        ->and($booked->check(at('2026-09-28 12:00'), at('2026-09-28 13:00'), weight: 2)->reason)->toBe(UnavailableReason::Busy)
+        ->and($booked->check(at('2026-09-28 12:00'), at('2026-09-28 13:00'))->remainingCapacity)->toBe(1);
+});
+
 it('generates aligned slots with limits and unavailable ones on request', function (): void {
     $availability = clinicAvailability()->withBusyPeriods([busy('2026-09-28 10:00', '2026-09-28 11:00')]);
     $slots = $availability->slots('2026-09-28', '2026-09-28')->duration(30)->step(30)->get();

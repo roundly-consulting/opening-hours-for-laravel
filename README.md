@@ -535,7 +535,8 @@ bookings are missed and show as free.
 
 Capacity: open capacity is `range.capacity ?? availability capacity ?? 1` (overlapping ranges take
 the maximum); a booking fits when `usage + weight ≤ capacity` at every moment of
-`[start − before, end + after)`. Durations, notice and buffers are real elapsed time; the horizon is
+`[start − before, end + after)`. With `buffers(withinOpeningHours: false)`, the closed part of a
+buffer counts the capacity of the range the booking starts in (before) or ends in (after). Durations, notice and buffers are real elapsed time; the horizon is
 counted in calendar days on the local wall clock.
 
 > Availability is a read. When you persist a booking, re-check inside your own lock or unique

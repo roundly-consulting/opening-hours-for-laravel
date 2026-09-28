@@ -169,7 +169,7 @@ final class Availability
         }
 
         $busy = $this->busy($occupiedFrom, $occupiedUntil);
-        $remaining = $this->timeline($busy, $occupiedFrom, $occupiedUntil)->minRemaining($occupiedFrom, $occupiedUntil);
+        $remaining = $this->remaining($this->timeline($busy, $occupiedFrom, $occupiedUntil), $from, $until);
 
         if ($remaining < $weight) {
             $conflict = null;
@@ -239,7 +239,7 @@ final class Availability
         $end = $this->endBound($to);
         $this->guardSpan($start, $end);
 
-        $stretches = $this->timeline($this->busy($start, $end), $start, $end, outside: 0)->freeStretches($weight);
+        $stretches = $this->timeline($this->busy($start, $end), $start, $end)->freeStretches($weight);
 
         return array_map(
             fn (array $stretch): Period => new Period($this->hours->instant($stretch[0]), $this->hours->instant($stretch[1])),
@@ -282,7 +282,7 @@ final class Availability
             $candidate = SlotGrid::ceil(max($run->start + $beforeIn, $startMin), $alignTo, $anchor, $clock);
 
             while ($candidate < $until && $candidate <= $startMax && $candidate + $duration * 60 + $afterIn <= $run->end) {
-                $remaining = $capacity->minRemaining($candidate - $this->before * 60, $candidate + ($duration + $this->after) * 60);
+                $remaining = $this->remaining($capacity, $candidate, $candidate + $duration * 60);
                 $available = $remaining >= $weight;
 
                 if ($available || $includeUnavailable) {
@@ -346,20 +346,40 @@ final class Availability
     }
 
     /**
+     * Free capacity of an open booking body `[from, until)` and its buffers. A
+     * buffer allowed outside opening hours carries, where closed, the capacity
+     * of the range it adjoins — it never blocks more than the booking itself.
+     */
+    private function remaining(CapacityTimeline $capacity, int $from, int $until): int
+    {
+        $occupiedFrom = $from - $this->before * 60;
+        $occupiedUntil = $until + $this->after * 60;
+
+        if ($this->withinOpeningHours) {
+            return $capacity->minRemaining($occupiedFrom, $occupiedUntil);
+        }
+
+        $remaining = $capacity->minRemaining($from, $until);
+
+        if ($occupiedFrom < $from) {
+            $remaining = min($remaining, $capacity->minRemaining($occupiedFrom, $from, $capacity->capacityAt($from)));
+        }
+
+        if ($occupiedUntil > $until) {
+            $remaining = min($remaining, $capacity->minRemaining($until, $occupiedUntil, $capacity->capacityAt($until - 1)));
+        }
+
+        return $remaining;
+    }
+
+    /**
+     * Closed time has no capacity; buffers outside opening hours are handled by `remaining()`.
+     *
      * @param  list<BusyPeriod>  $busy
      */
-    private function timeline(array $busy, int $from, int $until, ?int $outside = null): CapacityTimeline
+    private function timeline(array $busy, int $from, int $until): CapacityTimeline
     {
-        $default = $this->capacity ?? 1;
-
-        return new CapacityTimeline(
-            $this->hours->timeline(),
-            $busy,
-            $from,
-            $until,
-            $default,
-            $outside ?? ($this->withinOpeningHours ? 0 : $default),
-        );
+        return new CapacityTimeline($this->hours->timeline(), $busy, $from, $until, $this->capacity ?? 1);
     }
 
     private function startBound(LocalDate|DateTimeInterface|string $value): int
