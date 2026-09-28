@@ -202,8 +202,9 @@ final class Availability
     }
 
     /**
-     * The first free slot after `$after` (or now, whichever is later), scanning
-     * 7-day chunks up to `min(horizon, search_days)`.
+     * The first free slot after `$after` (or now, whichever is later), starting
+     * within `min(horizon, search_days)` local days past that day. Searched in
+     * chunks of at most a week that each stay within `max_query_days`.
      */
     public function nextAvailableSlot(int $duration, ?DateTimeInterface $after = null, ?int $step = null, int $weight = 1): ?Slot
     {
@@ -211,13 +212,14 @@ final class Availability
         // Nothing before now is bookable: never spend the search window there.
         $start = max($after?->getTimestamp() ?? PHP_INT_MIN, $this->now());
         $limit = $this->horizonDays === null ? Settings::searchDays() : min($this->horizonDays, Settings::searchDays());
-        $day = $clock->localEpochDay($start);
+        $end = $this->hours->timeline()->forwardEdge($start, $limit);
+        $chunkDays = min(7, Settings::maxQueryDays());
 
-        for ($scanned = 0; $scanned <= $limit; $scanned += 7) {
-            $chunkStart = $scanned === 0 ? $start : $clock->boundaryAt($day + $scanned, 0);
-            $chunkEnd = $clock->boundaryAt($day + $scanned + 7, 0);
-            $query = new SlotQuery($this, $chunkStart, $chunkEnd);
-            $slot = $query->duration($duration)->step($step)->weight($weight)->first();
+        for ($chunkStart = $start; $chunkStart < $end; $chunkStart = $chunkEnd) {
+            // Break at local midnight where possible; a DST-long week or day is cut
+            // by real time instead, so the chunk never exceeds max_query_days.
+            $chunkEnd = min($clock->boundaryAt($clock->localEpochDay($chunkStart) + $chunkDays, 0), $chunkStart + $chunkDays * 86400, $end);
+            $slot = (new SlotQuery($this, $chunkStart, $chunkEnd))->duration($duration)->step($step)->weight($weight)->first();
 
             if ($slot !== null) {
                 return $slot;

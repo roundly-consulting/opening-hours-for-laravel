@@ -128,8 +128,8 @@ return [
 | `default_calendar` | `default` | `OPENING_HOURS_DEFAULT_CALENDAR` | Calendar key used when none is given. |
 | `timezone` | `null` | `OPENING_HOURS_TIMEZONE` | Fallback timezone before `app.timezone` (IANA names only). |
 | `first_day_of_week` | `monday` | `OPENING_HOURS_FIRST_DAY_OF_WEEK` | Ordering of `forWeek()`, `forWeekOf()` and the calendar-week API mode. |
-| `search_days` | `366` | `OPENING_HOURS_SEARCH_DAYS` | How far `next*`/`previous*` look (1–3660); beyond it they return `null`. |
-| `max_query_days` | `366` | `OPENING_HOURS_MAX_QUERY_DAYS` | Largest span a span query or slot search may cover (1–3660). |
+| `search_days` | `366` | `OPENING_HOURS_SEARCH_DAYS` | How many local days after/before the given day `next*`/`previous*` and `nextAvailableSlot()` look (1–3660); beyond it they return `null`. |
+| `max_query_days` | `366` | `OPENING_HOURS_MAX_QUERY_DAYS` | Largest span a span query or slot search may cover (1–3660); `nextAvailableSlot()` and the status resource stay within it on their own. |
 | `delete_with_owner` | `true` | `OPENING_HOURS_DELETE_WITH_OWNER` | Remove calendars when their owner is deleted permanently. |
 | `limits.calendars` | `16` | — | Named calendars per owner. |
 | `limits.schedules` | `20` | — | Schedules per calendar. |

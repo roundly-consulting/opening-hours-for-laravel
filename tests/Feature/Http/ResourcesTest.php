@@ -63,6 +63,19 @@ it('lists upcoming exceptions only as far as max_query_days allows', function ()
     expect(array_column(resolveResource(OpeningStatusResource::make($hours))['upcoming_exceptions'], 'date'))->toBe(['2026-12-24', '2027-11-30']);
 });
 
+it('renders the status with a max_query_days below a week', function (): void {
+    config()->set('opening-hours.max_query_days', 1);
+    CarbonImmutable::setTestNow(at('2026-10-22 10:00'));
+    $hours = hours(['week' => ['monday' => ['08:00-12:00']], 'exceptions' => [['date' => '2026-10-23', 'label' => 'Closed']]]);
+
+    $status = resolveResource(OpeningStatusResource::make($hours));
+
+    expect(array_column($status['week'], 'date'))->toBe(['2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28'])
+        ->and($status['week'][1]['closed'])->toBeTrue()
+        ->and($status['next_open'])->toBe('2026-10-26T08:00:00+01:00')
+        ->and($status['upcoming_exceptions'])->toBe([]);
+});
+
 it('reports a closed-all-week status', function (): void {
     $status = resolveResource(OpeningStatusResource::make(hours([]))->at(at('2026-09-26 12:00')));
 

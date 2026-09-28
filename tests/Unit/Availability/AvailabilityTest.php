@@ -151,6 +151,33 @@ it('finds the next available slot across a closed weekend', function (): void {
         ->and(hours([])->availability()->nextAvailableSlot(30))->toBeNull();
 });
 
+it('searches the next slot exactly search_days local days past today', function (): void {
+    $availability = hours(['week' => ['wednesday' => ['09:00-10:00']]])->availability()->at(at('2026-09-28 12:00'));
+
+    config()->set('opening-hours.search_days', 1);
+    expect($availability->nextAvailableSlot(30))->toBeNull();
+
+    config()->set('opening-hours.search_days', 2);
+    expect($availability->nextAvailableSlot(30)?->start->format('Y-m-d H:i'))->toBe('2026-09-30 09:00');
+
+    config()->set('opening-hours.search_days', 9);
+    expect($availability->withBusyPeriods([busy('2026-09-30 09:00', '2026-09-30 10:00')])->nextAvailableSlot(30)?->start->format('Y-m-d H:i'))->toBe('2026-10-07 09:00');
+
+    config()->set('opening-hours.search_days', 8);
+    expect($availability->withBusyPeriods([busy('2026-09-30 09:00', '2026-09-30 10:00')])->nextAvailableSlot(30))->toBeNull();
+});
+
+it('finds the next slot in chunks that respect a small max_query_days, across DST', function (int $maxDays): void {
+    config()->set('opening-hours.max_query_days', $maxDays);
+    $everyDay = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['09:00-10:00']);
+    // Fully booked for two weeks around the October fall-back (25-hour day on 2026-10-25).
+    $availability = hours(['week' => $everyDay])->availability()->at(at('2026-10-19 12:00'))
+        ->withBusyPeriods([busy('2026-10-19 00:00', '2026-11-02 00:00')]);
+
+    expect($availability->nextAvailableSlot(30)?->start->format('Y-m-d H:i'))->toBe('2026-11-02 09:00')
+        ->and($availability->nextAvailableSlot(60, step: 45)?->start->format('Y-m-d H:i'))->toBe('2026-11-02 09:00');
+})->with([1, 2, 5, 7]);
+
 it('generates slots whose body runs days past the last start', function (): void {
     // Multi-day rentals: the scan must reach the end of the slot body, not just the last start.
     $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);

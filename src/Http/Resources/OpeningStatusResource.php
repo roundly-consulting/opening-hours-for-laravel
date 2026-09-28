@@ -47,9 +47,10 @@ final class OpeningStatusResource extends JsonResource
         $today = $hours->forDate($at);
         $date = $hours->localDate($at);
 
+        // A fixed seven days, not a caller-chosen span: max_query_days does not apply.
         $week = Settings::weekMode() === WeekMode::CalendarWeek
             ? $hours->forWeekOf($date)
-            : $hours->forPeriod($date, $date->addDays(6));
+            : array_map(static fn (int $offset): DayHours => $hours->forDate($date->addDays($offset)), range(0, 6));
 
         // Never ask for more days than max_query_days allows: the status would throw.
         $upcoming = $hours->exceptionsBetween($date, $date->addDays(min(Settings::upcomingExceptionsDays(), Settings::maxQueryDays() - 1)));

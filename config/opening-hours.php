@@ -91,7 +91,8 @@ return [
     |
     | forPeriod(), openingPeriodsBetween(), open/closed seconds, slots and
     | exceptionalClosingDates() throw QueryRangeTooLargeException beyond this
-    | many days (1..3660).
+    | many days (1..3660). nextAvailableSlot() and the status resource stay
+    | within it on their own (chunked search, fixed seven-day week).
     |
     */
 
