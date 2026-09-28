@@ -15,11 +15,8 @@ use RoundlyConsulting\OpeningHours\Validation\DefinitionValidator;
 use RoundlyConsulting\OpeningHours\Validation\RangeNormalizer;
 use RoundlyConsulting\OpeningHours\Validation\Violation;
 use RoundlyConsulting\OpeningHours\Validation\ViolationList;
-use RoundlyConsulting\OpeningHours\ValueObjects\AbsoluteWindow;
 use RoundlyConsulting\OpeningHours\ValueObjects\LocalDate;
-use RoundlyConsulting\OpeningHours\ValueObjects\MonthDay;
 use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
-use RoundlyConsulting\OpeningHours\ValueObjects\YearlyWindow;
 
 /**
  * Fluent editor for a whole calendar. Attached to an owner (`editOpeningHours()`)
@@ -185,23 +182,7 @@ final class CalendarBuilder
         bool $yearly = false,
         ?array $meta = null,
     ): self {
-        $until ??= $from;
-
-        if ($yearly || (is_string($from) && MonthDay::isValid($from))) {
-            $window = new YearlyWindow(self::monthDay($from), self::monthDay($until));
-        } else {
-            $window = new AbsoluteWindow(self::date($from), self::date($until));
-        }
-
-        $this->exceptions[] = new ExceptionData(
-            $window,
-            array_map(
-                static fn (TimeRange|string $range): TimeRange => $range instanceof TimeRange ? $range : TimeRange::fromString($range),
-                $ranges,
-            ),
-            $label,
-            $meta,
-        );
+        $this->exceptions[] = ExceptionData::make($from, $until, $ranges, $label, $yearly, $meta);
 
         return $this;
     }
@@ -328,15 +309,5 @@ final class CalendarBuilder
         }
 
         return $kept;
-    }
-
-    private static function date(LocalDate|string $date): LocalDate
-    {
-        return $date instanceof LocalDate ? $date : LocalDate::fromString($date);
-    }
-
-    private static function monthDay(LocalDate|string $date): MonthDay
-    {
-        return $date instanceof LocalDate ? $date->monthDay() : MonthDay::fromString($date);
     }
 }
