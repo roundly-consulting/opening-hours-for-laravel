@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use RoundlyConsulting\OpeningHours\Support\Limits;
+use RoundlyConsulting\OpeningHours\Support\Materialize;
+use RoundlyConsulting\OpeningHours\Support\Settings;
 use RoundlyConsulting\PackageToolkit\Exceptions\InvalidConfigurationException;
+use RoundlyConsulting\PackageToolkit\Support\Config;
 
 /**
  * The config contract in both directions: every key the code reads is shipped,
@@ -28,4 +31,24 @@ it('caps list limits at what the position columns hold on every engine', functio
 
     config()->set('opening-hours.limits.exceptions', 32_768);
     expect(fn () => Limits::exceptions())->toThrow(InvalidConfigurationException::class);
+});
+
+it('reads boolean env switches written as on/off or yes/no', function (): void {
+    $switches = ['OPENING_HOURS_DELETE_WITH_OWNER' => 'off', 'OPENING_HOURS_CACHE_ENABLED' => 'no', 'OPENING_HOURS_MATERIALIZE' => 'on'];
+
+    foreach ($switches as $name => $value) {
+        putenv("{$name}={$value}");
+    }
+
+    try {
+        config()->set('opening-hours', require __DIR__.'/../../config/opening-hours.php');
+
+        expect(Settings::deleteWithOwner())->toBeFalse()
+            ->and(Config::boolean('opening-hours.cache.enabled', true))->toBeFalse()
+            ->and(Materialize::enabled())->toBeTrue();
+    } finally {
+        foreach (array_keys($switches) as $name) {
+            putenv($name);
+        }
+    }
 });

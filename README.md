@@ -92,13 +92,13 @@ return [
     'first_day_of_week' => env('OPENING_HOURS_FIRST_DAY_OF_WEEK', 'monday'),
     'search_days' => (int) env('OPENING_HOURS_SEARCH_DAYS', 366),
     'max_query_days' => (int) env('OPENING_HOURS_MAX_QUERY_DAYS', 366),
-    'delete_with_owner' => (bool) env('OPENING_HOURS_DELETE_WITH_OWNER', true),
+    'delete_with_owner' => env('OPENING_HOURS_DELETE_WITH_OWNER', true),
     'limits' => [
         'calendars' => 16, 'schedules' => 20, 'ranges_per_day' => 12, 'exceptions' => 1000,
         'label_length' => 191, 'meta_bytes' => 4096, 'busy_periods' => 10000, 'slots' => 2000,
     ],
     'cache' => [
-        'enabled' => (bool) env('OPENING_HOURS_CACHE_ENABLED', true),
+        'enabled' => env('OPENING_HOURS_CACHE_ENABLED', true),
         'store' => env('OPENING_HOURS_CACHE_STORE'),
         'ttl' => env('OPENING_HOURS_CACHE_TTL', 86400),
         'prefix' => env('OPENING_HOURS_CACHE_PREFIX', 'opening-hours'),
@@ -109,7 +109,7 @@ return [
         'trashed_after_days' => env('OPENING_HOURS_PRUNE_TRASHED_AFTER_DAYS'),
     ],
     'materialize' => [
-        'enabled' => (bool) env('OPENING_HOURS_MATERIALIZE', false),
+        'enabled' => env('OPENING_HOURS_MATERIALIZE', false),
         'days_ahead' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
         'days_behind' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
         'connection' => env('OPENING_HOURS_QUEUE_CONNECTION'),

@@ -108,7 +108,7 @@ return [
     |
     */
 
-    'delete_with_owner' => (bool) env('OPENING_HOURS_DELETE_WITH_OWNER', true),
+    'delete_with_owner' => env('OPENING_HOURS_DELETE_WITH_OWNER', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -142,7 +142,7 @@ return [
     */
 
     'cache' => [
-        'enabled' => (bool) env('OPENING_HOURS_CACHE_ENABLED', true),
+        'enabled' => env('OPENING_HOURS_CACHE_ENABLED', true),
         'store' => env('OPENING_HOURS_CACHE_STORE'),
         'ttl' => env('OPENING_HOURS_CACHE_TTL', 86400),
         'prefix' => env('OPENING_HOURS_CACHE_PREFIX', 'opening-hours'),
@@ -190,7 +190,7 @@ return [
     */
 
     'materialize' => [
-        'enabled' => (bool) env('OPENING_HOURS_MATERIALIZE', false),
+        'enabled' => env('OPENING_HOURS_MATERIALIZE', false),
         'days_ahead' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
         'days_behind' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
         'connection' => env('OPENING_HOURS_QUEUE_CONNECTION'),
