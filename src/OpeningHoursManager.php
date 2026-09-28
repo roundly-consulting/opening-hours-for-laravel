@@ -151,13 +151,7 @@ class OpeningHoursManager
      */
     public function delete(Model $owner, ?string $calendar = null, bool $force = false): bool
     {
-        if ($owner->getKey() === null) {
-            return false;
-        }
-
-        $class = CalendarModel::class();
-        $query = $class::query()->forOwner($owner)->forKey($calendar ?? Settings::defaultCalendar());
-        $header = ($force ? $query->withTrashed() : $query)->first();
+        $header = $this->deletableCalendar($owner, $calendar, $force);
 
         if ($header === null) {
             return false;
@@ -265,11 +259,29 @@ class OpeningHoursManager
     }
 
     /**
+     * The header `delete()` would remove: a live one, or with `force` a
+     * soft-deleted one too.
+     */
+    protected function deletableCalendar(Model $owner, ?string $calendar, bool $force): ?Calendar
+    {
+        if ($owner->getKey() === null) {
+            return null;
+        }
+
+        $class = CalendarModel::class();
+        $query = $class::query()->forOwner($owner)->forKey($calendar ?? Settings::defaultCalendar());
+
+        return ($force ? $query->withTrashed() : $query)->first();
+    }
+
+    /**
      * A fresh read of the live header (a loaded relation may be stale for a write).
      *
      * @param  Model&OpeningHoursOwner  $owner
+     *
+     * @throws CalendarNotFoundException
      */
-    private function liveCalendar(Model $owner, ?string $calendar): Calendar
+    protected function liveCalendar(Model $owner, ?string $calendar): Calendar
     {
         $key = $calendar ?? Settings::defaultCalendar();
         $header = $owner->exists ? $owner->openingHoursCalendars()->where('key', $key)->first() : null;

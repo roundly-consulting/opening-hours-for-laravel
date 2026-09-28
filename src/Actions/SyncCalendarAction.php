@@ -10,7 +10,6 @@ use RoundlyConsulting\OpeningHours\Contracts\OpeningHoursOwner;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ScheduleData;
-use RoundlyConsulting\OpeningHours\Enums\ViolationCode;
 use RoundlyConsulting\OpeningHours\Events\OpeningHoursUpdated;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidOpeningHoursException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidOwnerException;
@@ -23,12 +22,9 @@ use RoundlyConsulting\OpeningHours\Models\ScheduleRange;
 use RoundlyConsulting\OpeningHours\Support\CalendarModel;
 use RoundlyConsulting\OpeningHours\Support\CalendarWriter;
 use RoundlyConsulting\OpeningHours\Support\ExceptionRuleModel;
-use RoundlyConsulting\OpeningHours\Support\Limits;
 use RoundlyConsulting\OpeningHours\Support\RevisionGuard;
 use RoundlyConsulting\OpeningHours\Support\ScheduleModel;
-use RoundlyConsulting\OpeningHours\Validation\DefinitionValidator;
-use RoundlyConsulting\OpeningHours\Validation\Violation;
-use RoundlyConsulting\OpeningHours\Validation\ViolationList;
+use RoundlyConsulting\OpeningHours\Support\WriteChecks;
 
 /**
  * Writes a whole definition to an owner's calendar in one transaction:
@@ -39,31 +35,18 @@ use RoundlyConsulting\OpeningHours\Validation\ViolationList;
  */
 final readonly class SyncCalendarAction
 {
-    public const string KEY_PATTERN = '/^[a-z0-9][a-z0-9_-]{0,63}$/';
-
     public function __construct(private Dispatcher $events) {}
 
     /**
      * @param  Model&OpeningHoursOwner  $owner
      *
+     * @throws InvalidOwnerException
      * @throws InvalidOpeningHoursException
      * @throws StaleOpeningHoursException
      */
     public function execute(Model $owner, CalendarData $data, string $key, ?int $expectedRevision = null): Calendar
     {
-        if (! $owner->exists) {
-            throw InvalidOwnerException::notPersisted();
-        }
-
-        if (preg_match(self::KEY_PATTERN, $key) !== 1) {
-            throw InvalidOpeningHoursException::fromViolation(new Violation(ViolationCode::InvalidCalendarKey, 'key', ['value' => $key]));
-        }
-
-        $violations = DefinitionValidator::validate($data);
-
-        if (! $violations->isEmpty()) {
-            throw InvalidOpeningHoursException::withViolations($violations);
-        }
+        WriteChecks::sync($owner, $data, $key);
 
         $calendar = RevisionGuard::suppress(fn (): Calendar => CalendarWriter::transaction(
             fn (): Calendar => $this->write($owner, $data, $key, $expectedRevision),
@@ -82,24 +65,14 @@ final readonly class SyncCalendarAction
         $existing = $class::query()->withTrashed()->where($identity)->first();
 
         if ($existing === null) {
-            $count = $class::query()->where('owner_type', $identity['owner_type'])->where('owner_id', $identity['owner_id'])->count();
-
-            if ($count >= Limits::calendars()) {
-                throw InvalidOpeningHoursException::fromViolation(new Violation(ViolationCode::LimitExceeded, 'key', ['limit' => Limits::calendars()]));
-            }
+            WriteChecks::calendarLimit($owner);
         }
 
         $created = $existing ?? $class::query()->withTrashed()->createOrFirst($identity, ['revision' => 0]);
         $calendar = CalendarWriter::lock($created->id);
         $isNew = $existing === null && $created->wasRecentlyCreated;
 
-        if ($expectedRevision !== null) {
-            $fresh = $isNew || $calendar->trashed();
-
-            if ($expectedRevision === 0 ? ! $fresh : ($fresh || $calendar->revision !== $expectedRevision)) {
-                throw StaleOpeningHoursException::make($expectedRevision, $calendar->trashed() ? 0 : $calendar->revision);
-            }
-        }
+        WriteChecks::revision($expectedRevision, $isNew || $calendar->trashed(), $calendar->revision);
 
         if ($calendar->trashed()) {
             $calendar->restore();
@@ -121,7 +94,7 @@ final readonly class SyncCalendarAction
     {
         $class = ScheduleModel::class();
         $existing = $class::query()->withTrashed()->where('calendar_id', $calendar->id)->get()->keyBy('id');
-        $this->guardIds($existing->keys()->all(), $schedules, 'schedules');
+        WriteChecks::ids($existing->keys()->all(), $schedules, 'schedules');
         $kept = [];
 
         foreach ($schedules as $position => $schedule) {
@@ -164,7 +137,7 @@ final readonly class SyncCalendarAction
     {
         $class = ExceptionRuleModel::class();
         $existing = $class::query()->withTrashed()->where('calendar_id', $calendar->id)->get()->keyBy('id');
-        $this->guardIds($existing->keys()->all(), $exceptions, 'exceptions');
+        WriteChecks::ids($existing->keys()->all(), $exceptions, 'exceptions');
         $kept = [];
 
         foreach ($exceptions as $position => $exception) {
@@ -197,27 +170,5 @@ final readonly class SyncCalendarAction
         }
 
         $class::query()->where('calendar_id', $calendar->id)->whereNotIn('id', $kept)->get()->each->delete();
-    }
-
-    /**
-     * IDOR guard: an id in the payload must belong to this calendar.
-     *
-     * @param  array<int|string>  $known
-     * @param  list<ScheduleData>|list<ExceptionData>  $items
-     */
-    private function guardIds(array $known, array $items, string $path): void
-    {
-        $violations = [];
-        $known = array_map('intval', $known);
-
-        foreach ($items as $index => $item) {
-            if ($item->id !== null && ! in_array($item->id, $known, true)) {
-                $violations[] = new Violation(ViolationCode::UnknownId, "{$path}.{$index}.id", ['id' => $item->id]);
-            }
-        }
-
-        if ($violations !== []) {
-            throw InvalidOpeningHoursException::withViolations(new ViolationList($violations));
-        }
     }
 }

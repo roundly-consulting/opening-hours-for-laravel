@@ -9,7 +9,10 @@ use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\Enums\Recurrence;
 use RoundlyConsulting\OpeningHours\Events\OpeningHoursDeleted;
 use RoundlyConsulting\OpeningHours\Events\OpeningHoursUpdated;
+use RoundlyConsulting\OpeningHours\Exceptions\CalendarNotFoundException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidOpeningHoursException;
+use RoundlyConsulting\OpeningHours\Exceptions\InvalidOwnerException;
+use RoundlyConsulting\OpeningHours\Exceptions\StaleOpeningHoursException;
 use RoundlyConsulting\OpeningHours\Facades\OpeningHours;
 use RoundlyConsulting\OpeningHours\Models\Calendar;
 use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
@@ -29,29 +32,35 @@ it('swaps in a manager subtype that the container and the owner trait reach', fu
 });
 
 it('records writes without touching the database or firing events', function (): void {
-    Event::fake([OpeningHoursUpdated::class, OpeningHoursDeleted::class]);
     $clinic = Clinic::query()->create(['timezone' => 'Europe/Bratislava']);
+    OpeningHours::sync($clinic, ['week' => ['monday' => ['09:00-10:00']], 'exceptions' => [['date' => '2026-01-06']]]);
+    OpeningHours::sync($clinic, [], 'pickup');
+    $ruleId = OpeningHours::exceptions($clinic)->all()[0]->id;
+    $revision = OpeningHours::calendar($clinic)->revision;
+    Event::fake([OpeningHoursUpdated::class, OpeningHoursDeleted::class]);
     $fake = OpeningHours::fake();
 
-    $hours = OpeningHours::sync($clinic, ['week' => ['monday' => ['09:00-10:00']]]);
+    $hours = OpeningHours::sync($clinic, ['week' => ['tuesday' => ['09:00-10:00']]]);
     $rule = OpeningHours::exceptions($clinic)->open('2026-12-31', ['09:00-13:00'], label: 'NYE');
     $yearly = OpeningHours::exceptions($clinic, 'pickup')->closed('12-25');
 
-    expect($hours->isOpenAt(at('2026-09-28 09:30')))->toBeTrue()
+    expect($hours->isOpenAt(at('2026-09-29 09:30')))->toBeTrue()
         ->and($hours->timezone()->getName())->toBe('Europe/Bratislava')
         ->and($rule->exists)->toBeFalse()
         ->and($rule->label)->toBe('NYE')
         ->and($rule->starts_on)->toEqual(ld('2026-12-31'))
         ->and($yearly->recurrence)->toBe(Recurrence::Yearly)
-        ->and(OpeningHours::exceptions($clinic)->remove(42))->toBeTrue()
+        ->and(OpeningHours::exceptions($clinic)->remove($ruleId))->toBeTrue()
         ->and(OpeningHours::delete($clinic, force: true))->toBeTrue()
-        ->and(Calendar::query()->withTrashed()->count())->toBe(0)
-        ->and(ExceptionRule::query()->withTrashed()->count())->toBe(0)
+        ->and(Calendar::query()->count())->toBe(2)
+        ->and(OpeningHours::calendar($clinic)->revision)->toBe($revision)
+        ->and(ExceptionRule::query()->count())->toBe(1)
         ->and($fake->writes())->toHaveCount(5)
         ->and($fake->writes()[0])->toBeInstanceOf(RecordedWrite::class);
 
     OpeningHours::refresh($clinic);
 
+    expect(OpeningHours::calendar($clinic)->revision)->toBe($revision);
     Event::assertNothingDispatched();
 });
 
@@ -67,6 +76,79 @@ it('still validates what it records', function (): void {
     OpeningHours::assertNothingSynced();
 });
 
+it('refuses every write the real manager refuses', function (): void {
+    $clinic = Clinic::query()->create();
+    OpeningHours::sync($clinic, ['week' => ['monday' => ['09:00-17:00']], 'exceptions' => [['date' => '2026-12-24']]]);
+    $bare = Clinic::query()->create();
+    $revision = OpeningHours::calendar($clinic)->revision;
+    $fake = OpeningHours::fake();
+
+    expect(fn () => OpeningHours::exceptions($clinic)->open('2026-12-31', ['09:00-13:00', '10:00-11:00']))->toThrow(InvalidOpeningHoursException::class)
+        ->and(fn () => OpeningHours::exceptions($clinic)->closed('2026-12-24'))->toThrow(InvalidOpeningHoursException::class)
+        ->and(fn () => OpeningHours::exceptions($clinic)->closed('2026-12-25', label: str_repeat('x', 300)))->toThrow(InvalidOpeningHoursException::class)
+        ->and(fn () => OpeningHours::exceptions($bare)->closed('2026-12-25'))->toThrow(CalendarNotFoundException::class)
+        ->and(fn () => OpeningHours::exceptions($bare)->remove(1))->toThrow(CalendarNotFoundException::class)
+        ->and(fn () => OpeningHours::sync($clinic, [], 'Bad Key!'))->toThrow(InvalidOpeningHoursException::class)
+        ->and(fn () => OpeningHours::sync(new Clinic, []))->toThrow(InvalidOwnerException::class)
+        ->and(fn () => OpeningHours::sync($clinic, [], expectedRevision: $revision + 1))->toThrow(StaleOpeningHoursException::class)
+        ->and(fn () => OpeningHours::sync($clinic, [], expectedRevision: 0))->toThrow(StaleOpeningHoursException::class)
+        ->and(fn () => OpeningHours::sync($bare, ['exceptions' => [['id' => 1, 'date' => '2026-12-24']]]))->toThrow(InvalidOpeningHoursException::class)
+        ->and(fn () => OpeningHours::edit($clinic)->expectRevision($revision + 1)->save())->toThrow(StaleOpeningHoursException::class);
+
+    $fake->assertNothingWritten();
+});
+
+it('enforces the calendars-per-owner limit like the real manager', function (): void {
+    config()->set('opening-hours.limits.calendars', 1);
+    $clinic = Clinic::query()->create();
+    OpeningHours::sync($clinic, []);
+    OpeningHours::fake();
+
+    expect(fn () => OpeningHours::sync($clinic, [], 'pickup'))->toThrow(InvalidOpeningHoursException::class);
+
+    OpeningHours::sync($clinic, [], expectedRevision: OpeningHours::calendar($clinic)->revision);
+    OpeningHours::assertSynced($clinic);
+});
+
+it('returns false and records nothing where the real manager has nothing to do', function (): void {
+    $clinic = Clinic::query()->create();
+    OpeningHours::sync($clinic, ['exceptions' => [['date' => '2026-12-24']]]);
+    $ruleId = OpeningHours::exceptions($clinic)->all()[0]->id;
+    $foreign = Clinic::query()->create();
+    OpeningHours::sync($foreign, ['exceptions' => [['date' => '2026-12-25']]]);
+    $foreignRule = OpeningHours::exceptions($foreign)->all()[0]->id;
+    $bare = Clinic::query()->create();
+    $fake = OpeningHours::fake();
+
+    expect(OpeningHours::exceptions($clinic)->remove(999))->toBeFalse()
+        ->and(OpeningHours::exceptions($clinic)->remove($foreignRule))->toBeFalse()
+        ->and(OpeningHours::delete($bare))->toBeFalse()
+        ->and(OpeningHours::delete(new Clinic))->toBeFalse()
+        ->and(OpeningHours::delete($clinic, 'pickup', force: true))->toBeFalse();
+
+    OpeningHours::refresh($bare);
+    $fake->assertNothingWritten();
+
+    expect(OpeningHours::exceptions($clinic)->remove($ruleId))->toBeTrue()
+        ->and(OpeningHours::delete($clinic))->toBeTrue();
+    OpeningHours::refresh($clinic);
+
+    $fake->assertExceptionRemoved($clinic, $ruleId);
+    $fake->assertDeleted($clinic, force: false);
+    $fake->assertRefreshed($clinic);
+});
+
+it('deletes a soft-deleted calendar only when forced, like the real manager', function (): void {
+    $clinic = Clinic::query()->create();
+    OpeningHours::sync($clinic, []);
+    OpeningHours::delete($clinic);
+    $fake = OpeningHours::fake();
+
+    expect(OpeningHours::delete($clinic))->toBeFalse()
+        ->and(OpeningHours::delete($clinic, force: true))->toBeTrue();
+    $fake->assertDeleted($clinic, force: true);
+});
+
 it('keeps reads on the database', function (): void {
     $clinic = Clinic::query()->create();
     OpeningHours::sync($clinic, ['exceptions' => [['date' => '2026-12-24', 'label' => 'Eve']]]);
@@ -80,6 +162,9 @@ describe('assertions', function (): void {
     beforeEach(function (): void {
         $this->clinic = Clinic::query()->create();
         $this->other = Clinic::query()->create();
+        OpeningHours::sync($this->clinic, ['exceptions' => [['date' => '2026-01-06']]]);
+        OpeningHours::sync($this->clinic, [], 'pickup');
+        OpeningHours::sync($this->other, []);
         $this->fake = OpeningHours::fake();
     });
 
@@ -112,7 +197,7 @@ describe('assertions', function (): void {
         $this->fake->assertDeleted($this->clinic, 'pickup', force: false);
         $this->fake->assertDeleted($this->clinic, 'pickup');
 
-        expect(Calendar::query()->count())->toBe(1)
+        expect(Calendar::query()->count())->toBe(4)
             ->and(fn () => $this->fake->assertDeleted($this->clinic, 'pickup', force: true))->toThrow(AssertionFailedError::class)
             ->and(fn () => $this->fake->assertDeleted($this->other))->toThrow(AssertionFailedError::class)
             ->and(fn () => $this->fake->assertNothingDeleted())->toThrow(AssertionFailedError::class);
@@ -146,12 +231,13 @@ describe('assertions', function (): void {
     it('asserts removed exceptions', function (): void {
         $this->fake->assertNoExceptionsRemoved();
 
-        OpeningHours::exceptions($this->clinic)->remove(7);
+        $ruleId = OpeningHours::exceptions($this->clinic)->all()[0]->id;
+        OpeningHours::exceptions($this->clinic)->remove($ruleId);
 
         $this->fake->assertExceptionRemoved($this->clinic);
-        $this->fake->assertExceptionRemoved($this->clinic, 7);
+        $this->fake->assertExceptionRemoved($this->clinic, $ruleId);
 
-        expect(fn () => $this->fake->assertExceptionRemoved($this->clinic, 8))->toThrow(AssertionFailedError::class)
+        expect(fn () => $this->fake->assertExceptionRemoved($this->clinic, $ruleId + 1))->toThrow(AssertionFailedError::class)
             ->and(fn () => $this->fake->assertExceptionRemoved($this->other))->toThrow(AssertionFailedError::class)
             ->and(fn () => $this->fake->assertNoExceptionsRemoved())->toThrow(AssertionFailedError::class);
     });
@@ -166,8 +252,9 @@ describe('assertions', function (): void {
 });
 
 it('builds a closed exception from strings or value objects', function (): void {
-    $fake = OpeningHours::fake();
     $clinic = Clinic::query()->create();
+    OpeningHours::sync($clinic, []);
+    $fake = OpeningHours::fake();
 
     OpeningHours::exceptions($clinic)->closed(LocalDate::fromString('2026-08-03'), LocalDate::fromString('2026-08-07'), yearly: true);
 

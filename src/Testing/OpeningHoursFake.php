@@ -10,22 +10,27 @@ use PHPUnit\Framework\Assert;
 use RoundlyConsulting\OpeningHours\Contracts\OpeningHoursOwner;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
-use RoundlyConsulting\OpeningHours\Exceptions\InvalidOpeningHoursException;
 use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
 use RoundlyConsulting\OpeningHours\OpeningHours;
 use RoundlyConsulting\OpeningHours\OpeningHoursManager;
+use RoundlyConsulting\OpeningHours\Support\CalendarModel;
 use RoundlyConsulting\OpeningHours\Support\CalendarWriter;
 use RoundlyConsulting\OpeningHours\Support\ExceptionRuleModel;
+use RoundlyConsulting\OpeningHours\Support\ScheduleModel;
 use RoundlyConsulting\OpeningHours\Support\Settings;
 use RoundlyConsulting\OpeningHours\Support\TimezoneResolver;
-use RoundlyConsulting\OpeningHours\Validation\DefinitionValidator;
+use RoundlyConsulting\OpeningHours\Support\WriteChecks;
 
 /**
  * `OpeningHours::fake()`: every write — `sync()`, `edit()->save()`,
  * `delete()`, `refresh()`, `exceptions()->add/closed/open/remove()` and the
  * owner trait's `setOpeningHours()` / `editOpeningHours()` / delete cascade —
- * is validated and recorded but never persisted, so no events fire and no
- * intervals are materialized. Reads still go to the database.
+ * runs the same checks as the real manager against the database as it is
+ * (owner, calendar key, definition, limits, ids, revision, missing calendar)
+ * and is recorded but never persisted, so no events fire and no intervals are
+ * materialized. A write the real manager would skip (`false`, nothing to
+ * delete, refresh or remove) returns the same and is not recorded. Reads still
+ * go to the database.
  */
 final class OpeningHoursFake extends OpeningHoursManager
 {
@@ -39,11 +44,19 @@ final class OpeningHoursFake extends OpeningHoursManager
     public function sync(Model $owner, CalendarData|array $data, ?string $calendar = null, ?int $expectedRevision = null): OpeningHours
     {
         $data = is_array($data) ? CalendarData::fromArray($data) : $data;
-        $violations = DefinitionValidator::validate($data);
+        $key = $calendar ?? Settings::defaultCalendar();
+        WriteChecks::sync($owner, $data, $key);
 
-        if (! $violations->isEmpty()) {
-            throw InvalidOpeningHoursException::withViolations($violations);
+        $class = CalendarModel::class();
+        $existing = $class::query()->withTrashed()->forOwner($owner)->forKey($key)->first();
+
+        if ($existing === null) {
+            WriteChecks::calendarLimit($owner);
         }
+
+        WriteChecks::revision($expectedRevision, $existing === null || $existing->trashed(), $existing->revision ?? 0);
+        WriteChecks::ids($existing === null ? [] : ScheduleModel::class()::query()->withTrashed()->where('calendar_id', $existing->id)->pluck('id')->all(), $data->schedules, 'schedules');
+        WriteChecks::ids($existing === null ? [] : ExceptionRuleModel::class()::query()->withTrashed()->where('calendar_id', $existing->id)->pluck('id')->all(), $data->exceptions, 'exceptions');
 
         $this->record('sync', $owner, $calendar, $data);
 
@@ -53,6 +66,10 @@ final class OpeningHoursFake extends OpeningHoursManager
 
     public function delete(Model $owner, ?string $calendar = null, bool $force = false): bool
     {
+        if ($this->deletableCalendar($owner, $calendar, $force) === null) {
+            return false;
+        }
+
         $this->record('delete', $owner, $calendar, $force);
 
         return true;
@@ -63,7 +80,9 @@ final class OpeningHoursFake extends OpeningHoursManager
      */
     public function refresh(Model $owner, ?string $calendar = null): void
     {
-        $this->record('refresh', $owner, $calendar);
+        if ($this->calendar($owner, $calendar) !== null) {
+            $this->record('refresh', $owner, $calendar);
+        }
     }
 
     /**
@@ -75,16 +94,20 @@ final class OpeningHoursFake extends OpeningHoursManager
      */
     public function addException(Model $owner, ExceptionData $data, ?string $calendar = null): ExceptionRule
     {
+        $header = $this->liveCalendar($owner, $calendar);
+        $checked = WriteChecks::exception($header->toData(), $data);
+
         $this->record('add', $owner, $calendar, $data);
-        [$recurrence, $from, $until] = CalendarWriter::windowColumns($data->window);
+        [$recurrence, $from, $until] = CalendarWriter::windowColumns($checked->window);
         $class = ExceptionRuleModel::class();
 
         return (new $class)->forceFill([
+            'calendar_id' => $header->id,
             'recurrence' => $recurrence,
             'starts_on' => $from,
             'ends_on' => $until,
-            'label' => $data->label,
-            'meta' => $data->meta,
+            'label' => $checked->label,
+            'meta' => $checked->meta,
         ]);
     }
 
@@ -95,6 +118,12 @@ final class OpeningHoursFake extends OpeningHoursManager
      */
     public function removeException(Model $owner, int $ruleId, ?string $calendar = null): bool
     {
+        $header = $this->liveCalendar($owner, $calendar);
+
+        if (! ExceptionRuleModel::class()::query()->where('calendar_id', $header->id)->whereKey($ruleId)->exists()) {
+            return false;
+        }
+
         $this->record('remove', $owner, $calendar, $ruleId);
 
         return true;

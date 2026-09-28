@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\OpeningHours\Actions;
 
-use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\Exceptions\CalendarNotFoundException;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidOpeningHoursException;
@@ -13,7 +12,7 @@ use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
 use RoundlyConsulting\OpeningHours\Support\CalendarWriter;
 use RoundlyConsulting\OpeningHours\Support\ExceptionRuleModel;
 use RoundlyConsulting\OpeningHours\Support\RevisionGuard;
-use RoundlyConsulting\OpeningHours\Validation\DefinitionValidator;
+use RoundlyConsulting\OpeningHours\Support\WriteChecks;
 
 /**
  * Adds one exception to a calendar, validated against the whole current
@@ -32,8 +31,6 @@ final readonly class AddExceptionAction
      */
     public function execute(Calendar $calendar, ExceptionData $data): ExceptionRule
     {
-        $data = $data->id === null ? $data : new ExceptionData($data->window, $data->ranges, $data->label, $data->meta);
-
         return RevisionGuard::suppress(fn (): ExceptionRule => CalendarWriter::transaction(function () use ($calendar, $data): ExceptionRule {
             $locked = CalendarWriter::lock($calendar->id);
 
@@ -42,12 +39,7 @@ final readonly class AddExceptionAction
             }
 
             $current = $locked->toData();
-            $candidate = new CalendarData($current->timezone, $current->label, $current->schedules, [...$current->exceptions, $data], $current->meta);
-            $violations = DefinitionValidator::validate($candidate);
-
-            if (! $violations->isEmpty()) {
-                throw InvalidOpeningHoursException::withViolations($violations);
-            }
+            $data = WriteChecks::exception($current, $data);
 
             [$recurrence, $from, $until] = CalendarWriter::windowColumns($data->window);
             $class = ExceptionRuleModel::class();

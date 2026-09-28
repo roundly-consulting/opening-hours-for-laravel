@@ -192,15 +192,16 @@ use RoundlyConsulting\OpeningHours\DataTransferObjects\ExceptionData;
 use RoundlyConsulting\OpeningHours\Facades\OpeningHours;
 
 OpeningHours::sync($clinic, ['week' => ['monday' => ['09:00-17:00']]]); // replace the whole definition
+OpeningHours::sync($clinic, ['week' => ['monday' => ['14:00-16:00']]], 'pickup'); // a second calendar
 OpeningHours::for($clinic)->isOpen();                                   // the query object
 OpeningHours::edit($clinic)->closed('2026-12-24')->save();              // builder, optimistic save
 
 // One exception at a time — locked, validated against the whole definition, never stale:
-OpeningHours::exceptions($clinic)->closed('2026-12-24', label: 'Christmas Eve');
-OpeningHours::exceptions($clinic)->open('2026-12-31', ['09:00-13:00']);
+$eve = OpeningHours::exceptions($clinic)->closed('2026-12-31', label: 'New Year’s Eve'); // ExceptionRule
+OpeningHours::exceptions($clinic)->open('2026-12-27', ['09:00-13:00']);
 OpeningHours::exceptions($clinic, 'pickup')->add(ExceptionData::make('12-26', label: 'St Stephen'));
 OpeningHours::exceptions($clinic)->all();                               // list<ExceptionData>, with ids
-OpeningHours::exceptions($clinic)->remove($ruleId);                     // false for another calendar's rule
+OpeningHours::exceptions($clinic)->remove($eve->id);                    // false for another calendar's rule
 
 OpeningHours::delete($clinic);                                          // soft; the next sync restores it
 OpeningHours::delete($clinic, 'pickup', force: true);                   // gone for good
@@ -231,7 +232,12 @@ app(AddExceptionAction::class)->execute($clinic->openingHoursCalendar(), Excepti
 
 **Faking it in your tests.** `OpeningHours::fake()` records every write — facade, injected manager,
 builder `save()` and the owner trait alike — without touching the database, firing events or
-materializing intervals. Payloads are still validated; reads still hit the database.
+materializing intervals. Each write still runs the real manager's checks against the database as it
+is — payload validation, calendar key, persisted owner, limits, foreign ids, `expectedRevision`, and
+`CalendarNotFoundException` for exception writes without a calendar — so a test fails where
+production would. Where the real manager has nothing to do, the fake answers the same and records
+nothing (`delete()` and `exceptions()->remove()` return `false`; `refresh()` of a missing calendar
+is a no-op). Reads still hit the database, so a faked write is not visible to the next one.
 
 ```php
 $fake = OpeningHours::fake();
