@@ -52,8 +52,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | The timezone a calendar is evaluated in when neither the calendar nor its
-    | owner's openingHoursTimezone() names one. Null falls back to
-    | config('app.timezone'). IANA identifiers only (e.g. Europe/Bratislava).
+    | owner's openingHoursTimezone() names one. Null (or empty) uses
+    | config('app.timezone'). IANA identifiers only (e.g. Europe/Bratislava);
+    | anything else throws.
     |
     */
 
@@ -137,7 +138,8 @@ return [
     |
     | Compiled definitions are cached per (calendar, revision); every write
     | bumps the revision, so there is nothing to invalidate. ttl in seconds,
-    | null = forever. store null = the default cache store.
+    | null = forever. store null = the default cache store. A store or prefix
+    | that is set must be a non-empty string, or it throws.
     |
     */
 
@@ -186,6 +188,8 @@ return [
     |
     | Keeps opening_hours_intervals filled so whereOpenAt()/whereOpenThroughout()
     | can filter owners in SQL. Schedule `opening-hours:materialize` daily.
+    | connection / queue null = the defaults; a set value must be a non-empty
+    | string, or it throws.
     |
     */
 

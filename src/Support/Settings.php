@@ -64,6 +64,47 @@ final class Settings
         return self::nullableDays('opening-hours.prune.trashed_after_days');
     }
 
+    /**
+     * The definition-cache key prefix: `opening-hours` when unset, otherwise a non-empty string.
+     */
+    public static function cachePrefix(): string
+    {
+        return self::name('opening-hours.cache.prefix') ?? 'opening-hours';
+    }
+
+    /**
+     * The definition-cache store, or null for the default store.
+     */
+    public static function cacheStore(): ?string
+    {
+        return self::name('opening-hours.cache.store');
+    }
+
+    /**
+     * The queue connection for materialization jobs, or null for the default.
+     */
+    public static function materializeConnection(): ?string
+    {
+        return self::name('opening-hours.materialize.connection');
+    }
+
+    /**
+     * The queue for materialization jobs, or null for the default.
+     */
+    public static function materializeQueue(): ?string
+    {
+        return self::name('opening-hours.materialize.queue');
+    }
+
+    /**
+     * A named resource (store, queue, connection, prefix): null when unset, otherwise a
+     * non-empty string — a blank or non-string value throws instead of meaning the default.
+     */
+    private static function name(string $key): ?string
+    {
+        return config($key) === null ? null : Config::requireString($key);
+    }
+
     private static function nullableDays(string $key): ?int
     {
         // Read raw first: the toolkit accessor maps null to its default, and null means "off" here.

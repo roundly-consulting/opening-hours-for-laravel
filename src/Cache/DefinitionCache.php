@@ -9,6 +9,7 @@ use Illuminate\Contracts\Cache\Repository;
 use Psr\Log\LoggerInterface;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
 use RoundlyConsulting\OpeningHours\Engine\Definition;
+use RoundlyConsulting\OpeningHours\Support\Settings;
 use RoundlyConsulting\PackageToolkit\Support\Config;
 use Throwable;
 use UnexpectedValueException;
@@ -33,9 +34,7 @@ final readonly class DefinitionCache
 
     public function key(int $calendarId, int $revision): string
     {
-        $prefix = config('opening-hours.cache.prefix');
-
-        return (is_string($prefix) && $prefix !== '' ? $prefix : 'opening-hours').":{$calendarId}:{$revision}:v".Definition::FORMAT;
+        return Settings::cachePrefix().":{$calendarId}:{$revision}:v".Definition::FORMAT;
     }
 
     public function get(int $calendarId, int $revision): ?CalendarData
@@ -99,8 +98,6 @@ final readonly class DefinitionCache
 
     public function store(): Repository
     {
-        $store = config('opening-hours.cache.store');
-
-        return $this->cache->store(is_string($store) && $store !== '' ? $store : null);
+        return $this->cache->store(Settings::cacheStore());
     }
 }

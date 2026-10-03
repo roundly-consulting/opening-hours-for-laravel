@@ -37,16 +37,12 @@ final class Materialize
 
     public static function connection(): ?string
     {
-        $value = config('opening-hours.materialize.connection');
-
-        return is_string($value) && $value !== '' ? $value : null;
+        return Settings::materializeConnection();
     }
 
     public static function queue(): ?string
     {
-        $value = config('opening-hours.materialize.queue');
-
-        return is_string($value) && $value !== '' ? $value : null;
+        return Settings::materializeQueue();
     }
 
     /**

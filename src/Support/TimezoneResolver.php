@@ -6,6 +6,7 @@ namespace RoundlyConsulting\OpeningHours\Support;
 
 use DateTimeZone;
 use RoundlyConsulting\OpeningHours\Exceptions\InvalidTimezoneException;
+use RoundlyConsulting\PackageToolkit\Exceptions\InvalidConfigurationException;
 
 /**
  * Resolves the timezone a calendar is evaluated in:
@@ -56,8 +57,14 @@ final class TimezoneResolver
     {
         $configured = config('opening-hours.timezone');
 
+        // Unset or empty (`OPENING_HOURS_TIMEZONE=`) means the app's zone; a string is
+        // validated by the caller; anything else is a config error, not a quiet fallback.
         if (is_string($configured) && $configured !== '') {
             return $configured;
+        }
+
+        if ($configured !== null && $configured !== '') {
+            throw InvalidConfigurationException::notAString('opening-hours.timezone', $configured);
         }
 
         $app = config('app.timezone');
