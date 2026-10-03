@@ -94,7 +94,7 @@ final readonly class DefinitionCache
             return null;
         }
 
-        return Config::intBetween('opening-hours.cache.ttl', 1, 31_536_000, 86400);
+        return Config::integer('opening-hours.cache.ttl', 86400, min: 1, max: 31_536_000);
     }
 
     public function store(): Repository

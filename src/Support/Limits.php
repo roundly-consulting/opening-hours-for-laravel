@@ -13,42 +13,42 @@ final class Limits
 {
     public static function schedules(): int
     {
-        return Config::intBetween('opening-hours.limits.schedules', 1, 1000, 20);
+        return Config::integer('opening-hours.limits.schedules', 20, min: 1, max: 1000);
     }
 
     public static function rangesPerDay(): int
     {
-        return Config::intBetween('opening-hours.limits.ranges_per_day', 1, 100, 12);
+        return Config::integer('opening-hours.limits.ranges_per_day', 12, min: 1, max: 100);
     }
 
     public static function exceptions(): int
     {
         // An exception's list position is stored in a smallint column (max 32 767 on PostgreSQL).
-        return Config::intBetween('opening-hours.limits.exceptions', 1, 32_767, 1000);
+        return Config::integer('opening-hours.limits.exceptions', 1000, min: 1, max: 32_767);
     }
 
     public static function labelLength(): int
     {
-        return Config::intBetween('opening-hours.limits.label_length', 1, 191, 191);
+        return Config::integer('opening-hours.limits.label_length', 191, min: 1, max: 191);
     }
 
     public static function metaBytes(): int
     {
-        return Config::intBetween('opening-hours.limits.meta_bytes', 1, 1_048_576, 4096);
+        return Config::integer('opening-hours.limits.meta_bytes', 4096, min: 1, max: 1_048_576);
     }
 
     public static function calendars(): int
     {
-        return Config::intBetween('opening-hours.limits.calendars', 1, 1000, 16);
+        return Config::integer('opening-hours.limits.calendars', 16, min: 1, max: 1000);
     }
 
     public static function busyPeriods(): int
     {
-        return Config::intBetween('opening-hours.limits.busy_periods', 1, 1_000_000, 10000);
+        return Config::integer('opening-hours.limits.busy_periods', 10000, min: 1, max: 1_000_000);
     }
 
     public static function slots(): int
     {
-        return Config::intBetween('opening-hours.limits.slots', 1, 100_000, 2000);
+        return Config::integer('opening-hours.limits.slots', 2000, min: 1, max: 100_000);
     }
 }

@@ -11,7 +11,7 @@ use RoundlyConsulting\PackageToolkit\Support\Config;
 /**
  * The config contract in both directions: every key the code reads is shipped,
  * every shipped leaf is read. Most reads go through the toolkit's validated
- * accessors (`Config::intBetween('opening-hours.search_days', …)`,
+ * accessors (`Config::integer('opening-hours.search_days', …)`,
  * `ModelResolver::for('opening-hours.models.calendar', …)`,
  * `KeyType::fromConfig('opening-hours.key_type')` in the migrations) rather than a
  * `config(` token, so the `opening-hours.` prefix is what makes them visible.

@@ -27,12 +27,12 @@ final class Materialize
 
     public static function daysAhead(): int
     {
-        return Config::intBetween('opening-hours.materialize.days_ahead', 1, 3660, 60);
+        return Config::integer('opening-hours.materialize.days_ahead', 60, min: 1, max: 3660);
     }
 
     public static function daysBehind(): int
     {
-        return Config::intBetween('opening-hours.materialize.days_behind', 0, 3660, 1);
+        return Config::integer('opening-hours.materialize.days_behind', 1, min: 0, max: 3660);
     }
 
     public static function connection(): ?string

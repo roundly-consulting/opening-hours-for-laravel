@@ -21,17 +21,17 @@ final class Settings
 
     public static function searchDays(): int
     {
-        return Config::intBetween('opening-hours.search_days', 1, 3660, 366);
+        return Config::integer('opening-hours.search_days', 366, min: 1, max: 3660);
     }
 
     public static function maxQueryDays(): int
     {
-        return Config::intBetween('opening-hours.max_query_days', 1, 3660, 366);
+        return Config::integer('opening-hours.max_query_days', 366, min: 1, max: 3660);
     }
 
     public static function upcomingExceptionsDays(): int
     {
-        return Config::intBetween('opening-hours.api.upcoming_exceptions_days', 0, 3660, 60);
+        return Config::integer('opening-hours.api.upcoming_exceptions_days', 60, min: 0, max: 3660);
     }
 
     public static function defaultCalendar(): string
@@ -70,6 +70,6 @@ final class Settings
         // An empty env value (`KEY=`) arrives as '' and means "off" too.
         $value = config($key);
 
-        return $value === null || $value === '' ? null : Config::intBetween($key, 0, 36500, 0);
+        return $value === null || $value === '' ? null : Config::integer($key, 0, min: 0, max: 36500);
     }
 }
