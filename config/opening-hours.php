@@ -82,7 +82,7 @@ return [
     |
     */
 
-    'search_days' => (int) env('OPENING_HOURS_SEARCH_DAYS', 366),
+    'search_days' => env('OPENING_HOURS_SEARCH_DAYS', 366),
 
     /*
     |--------------------------------------------------------------------------
@@ -96,7 +96,7 @@ return [
     |
     */
 
-    'max_query_days' => (int) env('OPENING_HOURS_MAX_QUERY_DAYS', 366),
+    'max_query_days' => env('OPENING_HOURS_MAX_QUERY_DAYS', 366),
 
     /*
     |--------------------------------------------------------------------------
@@ -191,8 +191,8 @@ return [
 
     'materialize' => [
         'enabled' => env('OPENING_HOURS_MATERIALIZE', false),
-        'days_ahead' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
-        'days_behind' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
+        'days_ahead' => env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
+        'days_behind' => env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
         'connection' => env('OPENING_HOURS_QUEUE_CONNECTION'),
         'queue' => env('OPENING_HOURS_QUEUE'),
     ],
