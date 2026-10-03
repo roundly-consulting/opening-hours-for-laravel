@@ -18,8 +18,6 @@ final class ExceptionRuleModel
      */
     public static function class(): string
     {
-        $model = ModelResolver::for('opening-hours.models.exception_rule', ExceptionRule::class);
-
-        return is_a($model, ExceptionRule::class, true) ? $model : ExceptionRule::class;
+        return ModelResolver::for('opening-hours.models.exception_rule', ExceptionRule::class);
     }
 }

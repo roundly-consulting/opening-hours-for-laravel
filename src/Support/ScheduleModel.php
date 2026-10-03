@@ -17,8 +17,6 @@ final class ScheduleModel
      */
     public static function class(): string
     {
-        $model = ModelResolver::for('opening-hours.models.schedule', Schedule::class);
-
-        return is_a($model, Schedule::class, true) ? $model : Schedule::class;
+        return ModelResolver::for('opening-hours.models.schedule', Schedule::class);
     }
 }

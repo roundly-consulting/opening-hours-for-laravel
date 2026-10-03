@@ -8,8 +8,9 @@ use RoundlyConsulting\OpeningHours\Models\Calendar;
 use RoundlyConsulting\PackageToolkit\Support\ModelResolver;
 
 /**
- * The (possibly host-swapped) calendar model from `opening-hours.models.calendar`.
- * A configured class that is not a `Calendar` falls back to the packaged one.
+ * Absent config resolves the packaged model; anything else must be that model or a subclass of
+ * it, or the toolkit's ModelResolver throws InvalidConfigurationException naming the key — a
+ * foreign class is never silently replaced.
  */
 final class CalendarModel
 {
@@ -18,9 +19,7 @@ final class CalendarModel
      */
     public static function class(): string
     {
-        $model = ModelResolver::for('opening-hours.models.calendar', Calendar::class);
-
-        return is_a($model, Calendar::class, true) ? $model : Calendar::class;
+        return ModelResolver::for('opening-hours.models.calendar', Calendar::class);
     }
 
     public static function make(): Calendar
