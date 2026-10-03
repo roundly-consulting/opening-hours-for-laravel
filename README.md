@@ -126,7 +126,7 @@ return [
 | `models.schedule` | `Schedule::class` | — | Schedule model; swap in a subclass. |
 | `models.exception_rule` | `ExceptionRule::class` | — | Exception model; swap in a subclass. |
 | `default_calendar` | `default` | `OPENING_HOURS_DEFAULT_CALENDAR` | Calendar key used when none is given. |
-| `timezone` | `null` | `OPENING_HOURS_TIMEZONE` | Fallback timezone before `app.timezone` (IANA names only). |
+| `timezone` | `null` | `OPENING_HOURS_TIMEZONE` | Fallback timezone before `app.timezone` (IANA names only; null or empty = `app.timezone`). |
 | `first_day_of_week` | `monday` | `OPENING_HOURS_FIRST_DAY_OF_WEEK` | Ordering of `forWeek()`, `forWeekOf()` and the calendar-week API mode. |
 | `search_days` | `366` | `OPENING_HOURS_SEARCH_DAYS` | How many local days after/before the given day `next*`/`previous*` and `nextAvailableSlot()` look (1–3660); beyond it they return `null`. |
 | `max_query_days` | `366` | `OPENING_HOURS_MAX_QUERY_DAYS` | Largest span a span query or slot search may cover (1–3660); `nextAvailableSlot()` and the status resource stay within it on their own. |
@@ -140,9 +140,9 @@ return [
 | `limits.busy_periods` | `10000` | — | Busy periods read per availability evaluation. |
 | `limits.slots` | `2000` | — | Maximum slots per slot query. |
 | `cache.enabled` | `true` | `OPENING_HOURS_CACHE_ENABLED` | Cache compiled definitions. |
-| `cache.store` | `null` | `OPENING_HOURS_CACHE_STORE` | Cache store (`null` = default store). |
+| `cache.store` | `null` | `OPENING_HOURS_CACHE_STORE` | Cache store (`null` = default store; a set value must be a non-empty string). |
 | `cache.ttl` | `86400` | `OPENING_HOURS_CACHE_TTL` | Seconds; `null` = forever. |
-| `cache.prefix` | `opening-hours` | `OPENING_HOURS_CACHE_PREFIX` | Cache key prefix. |
+| `cache.prefix` | `opening-hours` | `OPENING_HOURS_CACHE_PREFIX` | Cache key prefix (a non-empty string). |
 | `api.expose_meta` | `false` | — | Include `meta` in API resources. |
 | `api.week_mode` | `upcoming` | — | Status resource week: `upcoming` (next 7 dates) or `calendar_week`. |
 | `api.upcoming_exceptions_days` | `60` | — | Look-ahead of the status resource (capped at `max_query_days − 1`) and structured data. |
@@ -151,15 +151,17 @@ return [
 | `materialize.enabled` | `false` | `OPENING_HOURS_MATERIALIZE` | Maintain the `opening_hours_intervals` table for SQL scopes. |
 | `materialize.days_ahead` | `60` | `OPENING_HOURS_MATERIALIZE_DAYS_AHEAD` | Materialized horizon forward. |
 | `materialize.days_behind` | `1` | `OPENING_HOURS_MATERIALIZE_DAYS_BEHIND` | Materialized horizon backward. |
-| `materialize.connection` | `null` | `OPENING_HOURS_QUEUE_CONNECTION` | Queue connection of the materialization job. |
-| `materialize.queue` | `null` | `OPENING_HOURS_QUEUE` | Queue of the materialization job. |
+| `materialize.connection` | `null` | `OPENING_HOURS_QUEUE_CONNECTION` | Queue connection of the materialization job (`null` = default; else a non-empty string). |
+| `materialize.queue` | `null` | `OPENING_HOURS_QUEUE` | Queue of the materialization job (`null` = default; else a non-empty string). |
 | `facade_alias` | `OpeningHours` | — | Global facade alias; `null`/`false` disables it. |
 
 Env values arrive as strings and are validated when read: the switches take `true`/`1`/`on`/`yes`
 or `false`/`0`/`off`/`no`, the numeric keys take whole numbers within their range, and `key_type`,
 `first_day_of_week` and `api.week_mode` take one of their listed values. Anything else — a typo
-such as `OPENING_HOURS_CACHE_ENABLED=disabled` or `OPENING_HOURS_SEARCH_DAYS=abc` — throws
-`InvalidConfigurationException` instead of quietly becoming a default.
+such as `OPENING_HOURS_CACHE_ENABLED=disabled` or `OPENING_HOURS_SEARCH_DAYS=abc`, a blank cache
+store, prefix, queue or connection, or a timezone that isn't a string — throws
+`InvalidConfigurationException` instead of quietly becoming a default. `php artisan about` shows
+such a value as `INVALID`.
 
 ## Usage
 
