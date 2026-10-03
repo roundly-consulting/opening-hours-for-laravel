@@ -90,8 +90,8 @@ return [
     'default_calendar' => env('OPENING_HOURS_DEFAULT_CALENDAR', 'default'),
     'timezone' => env('OPENING_HOURS_TIMEZONE'),
     'first_day_of_week' => env('OPENING_HOURS_FIRST_DAY_OF_WEEK', 'monday'),
-    'search_days' => (int) env('OPENING_HOURS_SEARCH_DAYS', 366),
-    'max_query_days' => (int) env('OPENING_HOURS_MAX_QUERY_DAYS', 366),
+    'search_days' => env('OPENING_HOURS_SEARCH_DAYS', 366),
+    'max_query_days' => env('OPENING_HOURS_MAX_QUERY_DAYS', 366),
     'delete_with_owner' => env('OPENING_HOURS_DELETE_WITH_OWNER', true),
     'limits' => [
         'calendars' => 16, 'schedules' => 20, 'ranges_per_day' => 12, 'exceptions' => 1000,
@@ -110,8 +110,8 @@ return [
     ],
     'materialize' => [
         'enabled' => env('OPENING_HOURS_MATERIALIZE', false),
-        'days_ahead' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
-        'days_behind' => (int) env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
+        'days_ahead' => env('OPENING_HOURS_MATERIALIZE_DAYS_AHEAD', 60),
+        'days_behind' => env('OPENING_HOURS_MATERIALIZE_DAYS_BEHIND', 1),
         'connection' => env('OPENING_HOURS_QUEUE_CONNECTION'),
         'queue' => env('OPENING_HOURS_QUEUE'),
     ],
@@ -154,6 +154,12 @@ return [
 | `materialize.connection` | `null` | `OPENING_HOURS_QUEUE_CONNECTION` | Queue connection of the materialization job. |
 | `materialize.queue` | `null` | `OPENING_HOURS_QUEUE` | Queue of the materialization job. |
 | `facade_alias` | `OpeningHours` | — | Global facade alias; `null`/`false` disables it. |
+
+Env values arrive as strings and are validated when read: the switches take `true`/`1`/`on`/`yes`
+or `false`/`0`/`off`/`no`, the numeric keys take whole numbers within their range, and `key_type`,
+`first_day_of_week` and `api.week_mode` take one of their listed values. Anything else — a typo
+such as `OPENING_HOURS_CACHE_ENABLED=disabled` or `OPENING_HOURS_SEARCH_DAYS=abc` — throws
+`InvalidConfigurationException` instead of quietly becoming a default.
 
 ## Usage
 
