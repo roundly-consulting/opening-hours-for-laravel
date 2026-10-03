@@ -52,7 +52,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | The timezone a calendar is evaluated in when neither the calendar nor its
-    | owner's openingHoursTimezone() names one. Null (or empty) uses
+    | owner's openingHoursTimezone() names one. Null (or blank) uses
     | config('app.timezone'). IANA identifiers only (e.g. Europe/Bratislava);
     | anything else throws.
     |
@@ -138,8 +138,9 @@ return [
     |
     | Compiled definitions are cached per (calendar, revision); every write
     | bumps the revision, so there is nothing to invalidate. ttl in seconds,
-    | null = forever. store null = the default cache store. A store or prefix
-    | that is set must be a non-empty string, or it throws.
+    | null = forever (a blank env value is not set, so 86400). store null (or
+    | blank) = the default cache store. A store or prefix that is set must be
+    | a string, or it throws.
     |
     */
 
@@ -172,7 +173,8 @@ return [
     | Pruning
     |--------------------------------------------------------------------------
     |
-    | Defaults for `opening-hours:prune` (schedule it daily). Null = off.
+    | Defaults for `opening-hours:prune` (schedule it daily). Null (or blank)
+    | = off.
     |
     */
 
@@ -188,7 +190,7 @@ return [
     |
     | Keeps opening_hours_intervals filled so whereOpenAt()/whereOpenThroughout()
     | can filter owners in SQL. Schedule `opening-hours:materialize` daily.
-    | connection / queue null = the defaults; a set value must be a non-empty
+    | connection / queue null (or blank) = the defaults; a set value must be a
     | string, or it throws.
     |
     */
@@ -206,7 +208,8 @@ return [
     | Facade alias
     |--------------------------------------------------------------------------
     |
-    | Global class alias for the facade; null or false disables it.
+    | Global class alias for the facade; null or false disables it. A blank
+    | value is not set and keeps "OpeningHours".
     |
     */
 

@@ -88,7 +88,7 @@ final class OpeningHoursServiceProvider extends PackageServiceProvider
             'Exception rule model' => class_basename(ExceptionRuleModel::class()),
             'Key type' => self::orInvalid(static fn (): string => KeyType::fromConfig('opening-hours.key_type')->value),
             'Default calendar' => self::orInvalid(static fn (): string => Settings::defaultCalendar()),
-            'Default timezone' => self::orInvalid(static fn (): string => config('opening-hours.timezone') === null || config('opening-hours.timezone') === ''
+            'Default timezone' => self::orInvalid(static fn (): string => Settings::isUnset('opening-hours.timezone')
                 ? 'app'
                 : TimezoneResolver::validate(TimezoneResolver::fallback())->getName()),
             'Search days' => self::orInvalid(static fn (): string => (string) Settings::searchDays()),

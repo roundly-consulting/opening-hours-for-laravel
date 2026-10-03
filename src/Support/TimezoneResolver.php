@@ -57,14 +57,12 @@ final class TimezoneResolver
     {
         $configured = config('opening-hours.timezone');
 
-        // Unset or empty (`OPENING_HOURS_TIMEZONE=`) means the app's zone; a string is
+        // Not set (null or blank, `OPENING_HOURS_TIMEZONE=`) means the app's zone; a string is
         // validated by the caller; anything else is a config error, not a quiet fallback.
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
-        }
-
-        if ($configured !== null && $configured !== '') {
-            throw InvalidConfigurationException::notAString('opening-hours.timezone', $configured);
+        if (! Settings::isUnset('opening-hours.timezone')) {
+            return is_string($configured)
+                ? $configured
+                : throw InvalidConfigurationException::notAString('opening-hours.timezone', $configured);
         }
 
         $app = config('app.timezone');

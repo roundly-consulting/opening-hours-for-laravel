@@ -89,6 +89,7 @@ final readonly class DefinitionCache
     public function ttl(): ?int
     {
         // Null means forever; read it raw because the toolkit accessor maps null to its default.
+        // A blank `OPENING_HOURS_CACHE_TTL=` is not set, so it takes the default (a day), not forever.
         if (config('opening-hours.cache.ttl') === null) {
             return null;
         }

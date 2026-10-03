@@ -74,13 +74,13 @@ it('prunes with integer options from Artisan::call and refuses invalid ones', fu
     expect(ExceptionRule::query()->count())->toBe(2);
 });
 
-it('treats an empty prune env value as off', function (): void {
-    // `OPENING_HOURS_PRUNE_EXCEPTIONS_AFTER_DAYS=` in .env reaches the config as '' — not a crash.
-    config()->set('opening-hours.prune.exceptions_after_days', '');
-    config()->set('opening-hours.prune.trashed_after_days', '');
+it('treats a blank prune env value as off', function (string $blank): void {
+    // `OPENING_HOURS_PRUNE_EXCEPTIONS_AFTER_DAYS=` in .env reaches the config as '' — not set, so off.
+    config()->set('opening-hours.prune.exceptions_after_days', $blank);
+    config()->set('opening-hours.prune.trashed_after_days', $blank);
 
     $this->artisan('opening-hours:prune')->expectsOutputToContain('Nothing to prune')->assertSuccessful();
-});
+})->with(['blank' => '', 'whitespace' => '  ']);
 
 it('materializes inline or queues per calendar, only when enabled', function (): void {
     Bus::fake([MaterializeIntervalsJob::class]);

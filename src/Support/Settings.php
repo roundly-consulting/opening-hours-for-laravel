@@ -9,14 +9,15 @@ use RoundlyConsulting\OpeningHours\Enums\WeekMode;
 use RoundlyConsulting\PackageToolkit\Support\Config;
 
 /**
- * Validated reads of `config/opening-hours.php`. Invalid values throw the
- * toolkit's `InvalidConfigurationException` instead of silently misbehaving.
+ * Validated reads of `config/opening-hours.php`. A key that is not set (absent, null or
+ * blank: `''` or whitespace, a host's `KEY=`) takes the shipped default; invalid values
+ * throw the toolkit's `InvalidConfigurationException` instead of silently misbehaving.
  */
 final class Settings
 {
     public static function firstDayOfWeek(): Weekday
     {
-        return Config::enum('opening-hours.first_day_of_week', Weekday::class);
+        return Config::enum('opening-hours.first_day_of_week', Weekday::class, Weekday::Monday);
     }
 
     public static function searchDays(): int
@@ -36,7 +37,7 @@ final class Settings
 
     public static function defaultCalendar(): string
     {
-        return Config::requireString('opening-hours.default_calendar');
+        return self::name('opening-hours.default_calendar') ?? 'default';
     }
 
     public static function deleteWithOwner(): bool
@@ -51,7 +52,7 @@ final class Settings
 
     public static function weekMode(): WeekMode
     {
-        return Config::enum('opening-hours.api.week_mode', WeekMode::class);
+        return Config::enum('opening-hours.api.week_mode', WeekMode::class, WeekMode::Upcoming);
     }
 
     public static function pruneExceptionsAfterDays(): ?int
@@ -65,7 +66,7 @@ final class Settings
     }
 
     /**
-     * The definition-cache key prefix: `opening-hours` when unset, otherwise a non-empty string.
+     * The definition-cache key prefix: `opening-hours` when not set, otherwise a string.
      */
     public static function cachePrefix(): string
     {
@@ -97,20 +98,28 @@ final class Settings
     }
 
     /**
-     * A named resource (store, queue, connection, prefix): null when unset, otherwise a
-     * non-empty string — a blank or non-string value throws instead of meaning the default.
+     * Whether `$key` is not set: absent, null or blank (`''` or whitespace, a host's `KEY=`).
+     */
+    public static function isUnset(string $key): bool
+    {
+        $value = config($key);
+
+        return $value === null || (is_string($value) && trim($value) === '');
+    }
+
+    /**
+     * A named resource (calendar, store, queue, connection, prefix): null when not set,
+     * otherwise a string — a non-string value throws instead of meaning the default.
      */
     private static function name(string $key): ?string
     {
-        return config($key) === null ? null : Config::requireString($key);
+        return self::isUnset($key) ? null : Config::requireString($key);
     }
 
     private static function nullableDays(string $key): ?int
     {
-        // Read raw first: the toolkit accessor maps null to its default, and null means "off" here.
-        // An empty env value (`KEY=`) arrives as '' and means "off" too.
-        $value = config($key);
-
-        return $value === null || $value === '' ? null : Config::integer($key, 0, min: 0, max: 36500);
+        // Read raw first: the toolkit accessor maps "not set" to its default, and not set
+        // (null or a blank `KEY=`) means "off" here.
+        return self::isUnset($key) ? null : Config::integer($key, 0, min: 0, max: 36500);
     }
 }
