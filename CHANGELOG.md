@@ -22,6 +22,9 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   window.
 - A date outside 1900–2200 built from a `LocalDate` was saved, after which every read of the
   calendar threw; it is now refused with an `invalid_date` violation before anything is written.
+- Slot durations and buffers widened a slot search past `max_query_days` without a check, so a huge
+  value exhausted memory or threw a `TypeError`, and availability checks, `isOpenDuring()` and
+  `isClosedDuring()` had no span limit at all; all of them now throw `QueryRangeTooLargeException`.
 
 ## 1.0.0 - 2026-10-03
 

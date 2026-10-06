@@ -160,6 +160,7 @@ final class Availability
             return AvailabilityResult::unavailable(UnavailableReason::TooFar);
         }
 
+        $this->guardOccupancy(intdiv($until - $from + 59, 60));
         $occupiedFrom = $from - $this->before * 60;
         $occupiedUntil = $until + $this->after * 60;
         [$hoursFrom, $hoursUntil] = $this->withinOpeningHours ? [$occupiedFrom, $occupiedUntil] : [$from, $until];
@@ -256,6 +257,7 @@ final class Availability
     public function generate(int $from, int $until, int $duration, int $step, int $alignTo, int $anchor, int $weight, bool $includeUnavailable, int $limit): SlotCollection
     {
         $this->guardSpan($from, $until);
+        $this->guardOccupancy($duration);
         $now = $this->now();
         $startMin = max($from, $now + $this->minNotice * 60);
         $startMax = $this->horizonEnd($now) ?? PHP_INT_MAX;
@@ -405,6 +407,24 @@ final class Availability
     private function guardSpan(int $from, int $until): void
     {
         $this->hours->guardDays(intdiv(max(0, $until - $from) + 86399, 86400));
+    }
+
+    /**
+     * A booking's whole occupancy — before-buffer, body, after-buffer — must fit within
+     * `max_query_days`: every scan reaches that far past its start. Summed in whole days
+     * and remainders, so no setting can overflow an integer.
+     */
+    private function guardOccupancy(int $bodyMinutes): void
+    {
+        $days = 0;
+        $remainder = 0;
+
+        foreach ([$this->before, $bodyMinutes, $this->after] as $minutes) {
+            $days += intdiv($minutes, 1440);
+            $remainder += $minutes % 1440;
+        }
+
+        $this->hours->guardDays($days + intdiv($remainder + 1439, 1440));
     }
 
     private static function atLeast(string $setting, int $value, int $min): void

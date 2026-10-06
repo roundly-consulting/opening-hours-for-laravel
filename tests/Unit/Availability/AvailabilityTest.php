@@ -287,3 +287,18 @@ it('keeps every collection method of a slot list working, and its json in the to
         ->and(json_encode($slots))->toBe(json_encode($slots->toArray()))
         ->and(json_decode((string) json_encode($slots), true)[0])->toBe($slots->toArray()[0]);
 });
+
+it('guards the whole occupancy with max_query_days, not just the start window', function (Closure $query): void {
+    $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);
+
+    $query(hours(['week' => $allWeek])->availability()->at(at('2026-09-27 12:00')));
+})->throws(QueryRangeTooLargeException::class)->with([
+    'duration past the limit' => [fn (Availability $a) => $a->slots('2026-09-28', '2026-09-28')->duration(400 * 1440)->get()],
+    'overflowing duration' => [fn (Availability $a) => $a->slots('2026-09-28', '2026-09-28')->duration(intdiv(PHP_INT_MAX, 30))->get()],
+    'overflowing buffer' => [fn (Availability $a) => $a->buffers(before: intdiv(PHP_INT_MAX, 30))->slots('2026-09-28', '2026-09-28')->duration(30)->get()],
+    'next slot' => [fn (Availability $a) => $a->nextAvailableSlot(intdiv(PHP_INT_MAX, 30))],
+    'check span' => [fn (Availability $a) => $a->check(at('2026-09-28 00:00'), at('2600-01-01 00:00'))],
+    'check buffer' => [fn (Availability $a) => $a->buffers(after: intdiv(PHP_INT_MAX, 30))->check(at('2026-09-28 09:00'), at('2026-09-28 10:00'))],
+    'isOpenDuring' => [fn (Availability $a) => hours([])->isOpenDuring(at('2026-09-28 00:00'), at('2600-01-01 00:00'))],
+    'isClosedDuring' => [fn (Availability $a) => hours([])->isClosedDuring(at('2026-09-28 00:00'), at('2600-01-01 00:00'))],
+]);

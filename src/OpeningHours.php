@@ -436,7 +436,7 @@ final class OpeningHours
     }
 
     /**
-     * Open for the whole of `[$start, $end)`.
+     * Open for the whole of `[$start, $end)`; guarded by `max_query_days`.
      */
     public function isOpenDuring(DateTimeInterface $start, DateTimeInterface $end): bool
     {
@@ -447,7 +447,7 @@ final class OpeningHours
             return false;
         }
 
-        foreach ($this->timeline->forward($from, $this->spanDays($from, $until) + 1) as $run) {
+        foreach ($this->timeline->forward($from, $this->guardSpan($from, $until)) as $run) {
             return $run->start <= $from && ($run->end >= $until || $run->endsAfterScan);
         }
 
@@ -455,7 +455,7 @@ final class OpeningHours
     }
 
     /**
-     * Not open at any moment of `[$start, $end)`.
+     * Not open at any moment of `[$start, $end)`; guarded by `max_query_days`.
      */
     public function isClosedDuring(DateTimeInterface $start, DateTimeInterface $end): bool
     {
@@ -466,7 +466,7 @@ final class OpeningHours
             return true;
         }
 
-        foreach ($this->timeline->forward($from, $this->spanDays($from, $until) + 1) as $run) {
+        foreach ($this->timeline->forward($from, $this->guardSpan($from, $until)) as $run) {
             return $run->start >= $until;
         }
 
