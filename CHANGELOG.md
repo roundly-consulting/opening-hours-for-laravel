@@ -32,6 +32,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   instant, so the same run was described differently depending on when it was asked.
 - `isOpenAt()` and `currentRange()` missed a period of the next day when a fall-back just after
   midnight (America/St_Johns until 2011) made the clock read the day before again.
+- A run joined across a skipped local day (Pacific/Apia 2011-12-30) reported a later start when asked
+  at its first instant on the far side of the gap.
 
 ## 1.0.0 - 2026-10-03
 

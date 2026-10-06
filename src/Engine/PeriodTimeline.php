@@ -81,9 +81,11 @@ final class PeriodTimeline
      */
     public function forward(int $from, int $limitDays): Generator
     {
-        $firstDay = $this->clock->localEpochDay($from) - 1;
+        // Two days back: an overnight range reaches the next day, or past a skipped one
+        // (Pacific/Apia 2011-12-30) the day after it.
+        $firstDay = $this->clock->localEpochDay($from) - 2;
         // One lookahead day beyond the scan limit decides whether the last run truly ends.
-        $lastDay = $firstDay + 1 + $limitDays + 1;
+        $lastDay = $firstDay + 2 + $limitDays + 1;
         $edge = $this->clock->boundaryAt($lastDay + 1, 0);
         $current = null;
 
@@ -139,7 +141,7 @@ final class PeriodTimeline
             $lowDay = $highDay - $window;
             $final = $window >= $limitDays;
             $lowEdge = $this->clock->boundaryAt($lowDay, 0);
-            $runs = Coalescer::coalesce($this->periodsBetween($lowDay - 1, $highDay + 1));
+            $runs = Coalescer::coalesce($this->periodsBetween($lowDay - 2, $highDay + 1));
 
             for ($i = count($runs) - 1; $i >= 0; $i--) {
                 $run = $runs[$i];

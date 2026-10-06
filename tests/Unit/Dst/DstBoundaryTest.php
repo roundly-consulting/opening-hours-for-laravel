@@ -144,3 +144,15 @@ it('finds the next day\'s period when a fall-back after midnight repeats the day
         ->and($hours->currentRange($instant)?->toString('-'))->toBe('00:00-06:00')
         ->and($hours->currentPeriod($instant)?->start->format('c'))->toBe('2009-11-01T00:00:00-02:30');
 });
+
+it('joins a run across a skipped local day', function (): void {
+    // Apia skipped 2011-12-30: Thursday's overnight range ends at Saturday 00:00, where
+    // Saturday's range begins — one run, whichever instant inside it is asked.
+    $hours = hours(['week' => ['thursday' => ['22:00-06:00'], 'saturday' => ['00:00-08:00']]], 'Pacific/Apia');
+
+    expect($hours->currentPeriod(iso('2011-12-31T00:00:00+14:00'))?->start->format('c'))->toBe('2011-12-29T22:00:00-10:00')
+        ->and($hours->currentPeriod(iso('2011-12-31T01:00:00+14:00'))?->start->format('c'))->toBe('2011-12-29T22:00:00-10:00')
+        ->and($hours->previousOpen(iso('2011-12-31T07:00:00+14:00'))?->format('c'))->toBe('2011-12-29T22:00:00-10:00')
+        ->and($hours->nextOpen(iso('2011-12-29T12:00:00-10:00'))?->format('c'))->toBe('2011-12-29T22:00:00-10:00')
+        ->and($hours->nextClose(iso('2011-12-29T23:00:00-10:00'))?->format('c'))->toBe('2011-12-31T08:00:00+14:00');
+});
