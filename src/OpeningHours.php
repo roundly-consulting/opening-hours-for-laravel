@@ -192,9 +192,15 @@ final class OpeningHours
         if ($run->start < $instant) {
             $earlier = $this->first($this->timeline->backward($instant, $limit));
 
+            // The backward scan saw the run from its real start, the forward one only from the
+            // day before the instant: take the start and its source from the former, and keep a
+            // label or capacity only where both halves agree on it.
             if ($earlier !== null) {
                 $run->start = $earlier->start;
                 $run->startsBeforeScan = $earlier->startsBeforeScan;
+                $run->source = $earlier->source;
+                $run->label = $run->label === $earlier->label ? $run->label : null;
+                $run->capacity = $run->capacity === $earlier->capacity ? $run->capacity : null;
             }
         }
 

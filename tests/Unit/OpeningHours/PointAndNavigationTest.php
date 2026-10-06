@@ -227,3 +227,26 @@ it('resolves the timezone from the argument, the data, then config', function ()
 it('rejects fixed-offset and unknown timezones', function (string $timezone): void {
     OpeningHours::make([], $timezone);
 })->throws(InvalidTimezoneException::class)->with(['+02:00', 'Mars/Olympus']);
+
+it('describes one run the same way whatever instant inside it is asked', function (): void {
+    $hours = hours(['week' => [
+        'saturday' => [['from' => '00:00', 'to' => '24:00', 'label' => 'Weekend', 'capacity' => 5]],
+        'sunday' => [['from' => '00:00', 'to' => '24:00', 'label' => 'Late', 'capacity' => 2]],
+        'monday' => [['from' => '00:00', 'to' => '12:00', 'label' => 'Late', 'capacity' => 2]],
+    ]]);
+    $describe = function (string $at) use ($hours): array {
+        $period = $hours->currentPeriod(at($at));
+
+        return [$period?->start->format('c'), $period?->end->format('c'), $period?->label, $period?->capacity, $period?->source];
+    };
+
+    expect($describe('2026-10-05 10:00'))->toBe($describe('2026-10-03 10:00'))
+        ->and($describe('2026-10-04 10:00'))->toBe($describe('2026-10-03 10:00'))
+        ->and($describe('2026-10-05 10:00'))->toBe(['2026-10-03T00:00:00+02:00', '2026-10-05T12:00:00+02:00', null, null, DaySource::Schedule]);
+
+    // A run opened by an exception keeps that source, however far into it the instant lies.
+    $mixed = hours(['week' => ['sunday' => ['00:00-24:00'], 'monday' => ['00:00-12:00']], 'exceptions' => [['date' => '2026-10-03', 'ranges' => ['00:00-24:00']]]]);
+
+    expect($mixed->currentPeriod(at('2026-10-05 10:00'))?->source)->toBe(DaySource::Exception)
+        ->and($mixed->currentPeriod(at('2026-10-03 10:00'))?->source)->toBe(DaySource::Exception);
+});

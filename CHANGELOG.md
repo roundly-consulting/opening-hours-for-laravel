@@ -28,6 +28,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 - A before-buffer of a day or more hid valid slots at the start of a long opening run.
 - `nextAvailableSlot()` restarted the step sequence at every internal search chunk, so its answer
   depended on `max_query_days` and could be a slot `slots()` never lists.
+- `currentPeriod()` took the label, capacity and source of a long run only from the part around the
+  instant, so the same run was described differently depending on when it was asked.
 
 ## 1.0.0 - 2026-10-03
 
