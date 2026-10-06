@@ -211,3 +211,17 @@ it('validates a single time range', function (mixed $value, bool $passes): void 
     [['from' => '09:00', 'to' => '10:00', 'capacity' => 'x'], false],
     [12, false],
 ]);
+
+it('fails a single range on the label and meta limits a save would refuse', function (): void {
+    config()->set('opening-hours.limits.label_length', 10);
+    config()->set('opening-hours.limits.meta_bytes', 64);
+    $validator = Validator::make(
+        ['label' => ['from' => '09:00', 'to' => '10:00', 'label' => str_repeat('x', 11)], 'meta' => ['from' => '09:00', 'to' => '10:00', 'meta' => ['note' => str_repeat('x', 64)]]],
+        ['label' => [new ValidTimeRange], 'meta' => [new ValidTimeRange]],
+    );
+
+    expect($validator->fails())->toBeTrue()
+        ->and($validator->errors()->first('label'))->toBe('Label (label): may not be longer than 10 characters.')
+        ->and($validator->errors()->first('meta'))->toBe('Meta (metadata): may not be larger than 64 bytes.')
+        ->and(Validator::make(['r' => ['from' => '09:00', 'to' => '10:00', 'label' => str_repeat('x', 10)]], ['r' => [new ValidTimeRange]])->passes())->toBeTrue();
+});

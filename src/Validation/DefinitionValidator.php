@@ -38,6 +38,17 @@ final class DefinitionValidator
         return new ViolationList($validator->violations);
     }
 
+    /**
+     * The limits one range must meet on its own: label length and meta size.
+     */
+    public static function validateRange(TimeRange $range, string $path): ViolationList
+    {
+        $validator = new self(new Paths);
+        $validator->rangeFields($range, $path);
+
+        return new ViolationList($validator->violations);
+    }
+
     private function run(CalendarData $data): void
     {
         if ($data->timezone !== null && ! TimezoneResolver::isValid($data->timezone)) {

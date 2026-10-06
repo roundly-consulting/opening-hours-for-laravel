@@ -53,7 +53,8 @@ final class CalendarParser
     }
 
     /**
-     * Parse one range — `"HH:MM-HH:MM"` or `{from, to, label?, capacity?, meta?}`.
+     * Parse one range — `"HH:MM-HH:MM"` or `{from, to, label?, capacity?, meta?}` —
+     * and check it against the label and meta limits a save applies.
      *
      * @return array{?TimeRange, ViolationList}
      */
@@ -61,8 +62,9 @@ final class CalendarParser
     {
         $parser = new self(new ParseOptions, false);
         $range = $parser->range($value, $path);
+        $violations = new ViolationList($parser->violations);
 
-        return [$range, new ViolationList($parser->violations)];
+        return [$range, $range === null ? $violations : $violations->merge(DefinitionValidator::validateRange($range, $path))];
     }
 
     /**

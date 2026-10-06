@@ -41,6 +41,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 - With `mergeOverlapping`, a violation on a merged range named a post-merge range index, and one
   on a range spilling into the next day of the top-level `week` named `week.week.<day>`; both now
   name the day.
+- `ValidTimeRange` passed a range whose label or meta exceeded the configured limits, which the save
+  then refused.
 
 ## 1.0.0 - 2026-10-03
 
