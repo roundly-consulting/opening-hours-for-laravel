@@ -6,6 +6,8 @@ namespace RoundlyConsulting\OpeningHours\Engine;
 
 use RoundlyConsulting\OpeningHours\DataTransferObjects\WeekData;
 use RoundlyConsulting\OpeningHours\Enums\Weekday;
+use RoundlyConsulting\OpeningHours\ValueObjects\Time;
+use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 
 /**
  * A weekly template mapped onto the circular 10 080-minute week: overnight
@@ -76,6 +78,33 @@ final class WeekCoverage
     public static function coversWholeWeek(WeekData $week): bool
     {
         return self::coveredMinutes($week) >= self::WEEK_MINUTES;
+    }
+
+    /**
+     * Whether each day is covered from 00:00 to 24:00 by its own ranges, without
+     * the previous day's overnight spill — the spill a schedule hand-over cuts off.
+     */
+    public static function coversEveryDayOnItsOwn(WeekData $week): bool
+    {
+        foreach (Weekday::ordered() as $weekday) {
+            $ranges = $week->for($weekday);
+            usort($ranges, static fn (TimeRange $a, TimeRange $b): int => $a->start->minutes <=> $b->start->minutes);
+            $reached = 0;
+
+            foreach ($ranges as $range) {
+                if ($range->start->minutes > $reached) {
+                    break;
+                }
+
+                $reached = max($reached, $range->isOvernight() ? Time::END_OF_DAY : $range->end->minutes);
+            }
+
+            if ($reached < Time::END_OF_DAY) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

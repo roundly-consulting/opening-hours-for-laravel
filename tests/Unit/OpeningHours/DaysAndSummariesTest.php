@@ -238,3 +238,18 @@ it('exposes its definition and a bounded day-plan memo', function (): void {
         ->and($hours->definition()->schedules)->toHaveCount(1)
         ->and($hours->compiled()->data)->toBe($hours->definition());
 });
+
+it('is not always open when a schedule hand-over leaves a gap', function (): void {
+    $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    $allDay = ['week' => array_fill_keys($days, ['00:00-24:00'])];
+    // The winter week covers every minute only through the previous day's overnight spill,
+    // which its first day (2026-12-01, after a base-schedule day) does not have.
+    $hours = hours(['schedules' => [$allDay, ['window' => ['from' => '12-01', 'until' => '02-28'], 'week' => array_fill_keys($days, ['06:00-18:00', '18:00-06:00'])]]]);
+    $seamless = hours(['schedules' => [$allDay, ['window' => ['from' => '12-01', 'until' => '02-28'], 'week' => array_fill_keys($days, ['00:00-12:00', '12:00-24:00'])]]]);
+
+    expect($hours->isAlwaysOpen())->toBeFalse()
+        ->and($hours->isOpenAt(at('2026-12-01 03:00')))->toBeFalse()
+        ->and($hours->nextClose(at('2026-11-30 12:00'))?->format('Y-m-d H:i'))->toBe('2026-12-01 00:00')
+        ->and($hours->previousClose(at('2026-12-02 12:00'))?->format('Y-m-d H:i'))->toBe('2026-12-01 00:00')
+        ->and($seamless->isAlwaysOpen())->toBeTrue();
+});

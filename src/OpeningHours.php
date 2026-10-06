@@ -541,7 +541,9 @@ final class OpeningHours
 
     /**
      * Open around the clock: a base schedule, every schedule covering the whole
-     * week, and no exceptions or providers that could close it.
+     * week, and no exceptions or providers that could close it. With several
+     * schedules each one must cover every day on its own: a hand-over cuts off
+     * the previous day's overnight spill.
      */
     public function isAlwaysOpen(): bool
     {
@@ -553,8 +555,10 @@ final class OpeningHours
             return $this->alwaysOpen = false;
         }
 
+        $handsOver = count($this->definition->schedules) > 1;
+
         foreach ($this->definition->schedules as $schedule) {
-            if (! WeekCoverage::coversWholeWeek($schedule->week)) {
+            if ($handsOver ? ! WeekCoverage::coversEveryDayOnItsOwn($schedule->week) : ! WeekCoverage::coversWholeWeek($schedule->week)) {
                 return $this->alwaysOpen = false;
             }
         }

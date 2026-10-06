@@ -12,6 +12,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   line after the gap, and the repeated hour on the fall-back day.
 - A definition written inside a host transaction that rolled back stayed cached under a revision
   the next write reuses, so reads served the rolled-back hours.
+- `isAlwaysOpen()` ignored the gap at a hand-over to a schedule that covers the week only through
+  overnight spill, so `nextClose()` and `previousClose()` returned null there.
 
 ## 1.0.0 - 2026-10-03
 
