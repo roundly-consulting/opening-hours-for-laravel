@@ -254,3 +254,13 @@ it('merges overlapping legacy ranges like the legacy read path', function (): vo
 
     expect($data->baseSchedule()?->week->for(Weekday::Monday)[0]->toString('-'))->toBe('09:00-14:00');
 });
+
+it('keeps which bound of a week-array exception span is wrong', function (): void {
+    $start = WeekArrayParser::parse(['exceptions' => ['2026-13-01 to 2026-12-30' => []]])->violations->first();
+    $end = WeekArrayParser::parse(['exceptions' => ['2026-12-01 to 2026-13-30' => []]])->violations->first();
+
+    expect($start?->path)->toBe('exceptions.2026-13-01 to 2026-12-30.from')
+        ->and($start?->message())->toContain('(start date)')
+        ->and($end?->path)->toBe('exceptions.2026-12-01 to 2026-13-30.until')
+        ->and($end?->message())->toContain('(end date)');
+});

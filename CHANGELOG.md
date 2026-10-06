@@ -43,6 +43,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   name the day.
 - `ValidTimeRange` passed a range whose label or meta exceeded the configured limits, which the save
   then refused.
+- A week-array exception span with an invalid start date (`"2026-13-01 to 2026-12-30"`) was reported
+  on the whole key instead of its start date.
 
 ## 1.0.0 - 2026-10-03
 

@@ -190,8 +190,9 @@ final class WeekArrayParser
                     $rest = substr($rest, strlen('.ranges'));
                 }
 
-                // Week-array ranges are strings; point at the range, not the synthesised from/to.
-                return $prefix.(preg_replace('/\.(from|to)$/', '', $rest) ?? $rest);
+                // Week-array ranges are strings; point at the range, not the synthesised from/to
+                // (only after a range index: an exception span's `from` is a real bound).
+                return $prefix.(preg_replace('/(\.\d+)\.(from|to)$/', '$1', $rest) ?? $rest);
             }
         }
 
