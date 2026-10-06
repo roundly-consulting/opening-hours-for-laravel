@@ -51,6 +51,9 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   calendar west of UTC: the cutoff now uses today's date at UTC−12.
 - Materialization threw `QueryRangeTooLargeException` on a 25-hour fall-back day when
   `max_query_days` was 1.
+- `whereOpenAt()` and `whereOpenThroughout()` accepted instants up to `now + days_ahead`, past what the
+  last daily run had stored, and silently answered "closed" there; the horizon now ends at
+  `now + days_ahead − 1 day`.
 
 ## 1.0.0 - 2026-10-03
 

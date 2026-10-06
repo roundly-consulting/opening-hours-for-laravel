@@ -73,11 +73,16 @@ final class IntervalScopes
         });
     }
 
+    /**
+     * The horizon is `now − days_behind` … `now + days_ahead − 1 day`: a run stores
+     * whole local days up to its own `today + days_ahead`, so with daily runs at
+     * least that much is materialized until the next one.
+     */
     private static function utc(DateTimeInterface $instant): string
     {
         $now = Clock::now();
         $from = $now->subDays(Materialize::daysBehind());
-        $until = $now->addDays(Materialize::daysAhead());
+        $until = $now->addDays(Materialize::daysAhead() - 1);
 
         if ($instant->getTimestamp() < $from->getTimestamp() || $instant->getTimestamp() > $until->getTimestamp()) {
             throw OutsideMaterializedHorizonException::make($instant->format(DATE_ATOM), $from->format(DATE_ATOM), $until->format(DATE_ATOM));

@@ -217,3 +217,18 @@ it('materializes a 25-hour fall-back day under a max_query_days of 1', function 
             '2026-10-26 07:00:00|2026-10-26 16:00:00',
         ]);
 });
+
+it('refuses an instant past what the last daily run materialized', function (): void {
+    Bus::fake();
+    config()->set('opening-hours.materialize.days_ahead', 2);
+    CarbonImmutable::setTestNow(iso('2026-10-10T03:00:00Z'));
+    $clinic = materializedClinic(array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']), 'UTC');
+    (new MaterializeIntervalsJob($clinic->openingHoursCalendar()->id))->handle(app(MaterializeIntervalsAction::class));
+
+    // The next daily run has not happened yet: intervals still end where this one left them.
+    CarbonImmutable::setTestNow(iso('2026-10-11T02:00:00Z'));
+
+    expect(Interval::query()->max('closes_at'))->toBe('2026-10-13 00:00:00')
+        ->and(Clinic::query()->whereOpenAt(iso('2026-10-12T01:00:00Z'))->pluck('id')->all())->toBe([$clinic->id])
+        ->and(fn () => Clinic::query()->whereOpenAt(iso('2026-10-13T01:00:00Z'))->count())->toThrow(OutsideMaterializedHorizonException::class);
+});
