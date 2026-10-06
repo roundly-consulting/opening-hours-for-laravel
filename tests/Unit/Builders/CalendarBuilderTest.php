@@ -149,3 +149,14 @@ it('builds an in-memory calendar detached from any owner', function (): void {
         ->and($hours->forDate('2026-09-28')->toString(timeSeparator: '-'))->toBe('10:00-11:00')
         ->and($hours->forDate('2026-12-25')->isClosed())->toBeTrue();
 });
+
+it('keeps the other bound when one bound of a loaded window changes', function (): void {
+    $loaded = ScheduleBuilder::make()->between('2026-11-01', '2026-12-31')->weekdays('09:00-17:00')->toData();
+
+    $later = ScheduleBuilder::fromData($loaded)->until('2027-01-31')->toData()->window;
+    $earlier = ScheduleBuilder::fromData($loaded)->from('2026-10-15')->toData()->window;
+
+    expect($later?->toArray())->toBe(['from' => '2026-11-01', 'until' => '2027-01-31', 'recurrence' => 'none'])
+        ->and($earlier?->toArray())->toBe(['from' => '2026-10-15', 'until' => '2026-12-31', 'recurrence' => 'none'])
+        ->and(ScheduleBuilder::fromData($loaded)->toData()->window?->toArray())->toBe(['from' => '2026-11-01', 'until' => '2026-12-31', 'recurrence' => 'none']);
+});

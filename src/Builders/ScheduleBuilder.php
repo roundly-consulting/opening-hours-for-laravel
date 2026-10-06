@@ -46,7 +46,16 @@ final class ScheduleBuilder
     {
         $builder = new self;
         $builder->ranges = $schedule->week->ranges;
-        $builder->window = $schedule->isBase() ? null : $schedule->window;
+        $window = $schedule->isBase() ? null : $schedule->window;
+
+        // A dated window is kept as its bounds, so changing one keeps the other.
+        if ($window instanceof AbsoluteWindow) {
+            $builder->from = $window->from;
+            $builder->until = $window->until;
+        } else {
+            $builder->window = $window;
+        }
+
         $builder->priority = $schedule->priority;
         $builder->label = $schedule->label;
         $builder->meta = $schedule->meta;

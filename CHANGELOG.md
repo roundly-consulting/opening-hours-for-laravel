@@ -18,6 +18,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   `toArray()`, dropped `keyBy()` keys, and serialized to JSON in a different shape than `toArray()`.
 - `MaterializeIntervalsJob` was never unique: every change and every `opening-hours:materialize` run
   queued another job for the same calendar.
+- `ScheduleBuilder::fromData()` followed by `from()` or `until()` dropped the other bound of a dated
+  window.
 
 ## 1.0.0 - 2026-10-03
 
