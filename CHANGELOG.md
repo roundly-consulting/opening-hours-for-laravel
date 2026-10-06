@@ -25,6 +25,7 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 - Slot durations and buffers widened a slot search past `max_query_days` without a check, so a huge
   value exhausted memory or threw a `TypeError`, and availability checks, `isOpenDuring()` and
   `isClosedDuring()` had no span limit at all; all of them now throw `QueryRangeTooLargeException`.
+- A before-buffer of a day or more hid valid slots at the start of a long opening run.
 
 ## 1.0.0 - 2026-10-03
 

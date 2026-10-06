@@ -302,3 +302,12 @@ it('guards the whole occupancy with max_query_days, not just the start window', 
     'isOpenDuring' => [fn (Availability $a) => hours([])->isOpenDuring(at('2026-09-28 00:00'), at('2600-01-01 00:00'))],
     'isClosedDuring' => [fn (Availability $a) => hours([])->isClosedDuring(at('2026-09-28 00:00'), at('2600-01-01 00:00'))],
 ]);
+
+it('fits a before-buffer of a day or more into a run that started long before', function (): void {
+    $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);
+    $open = hours(['week' => $allWeek])->availability()->at(at('2026-04-01 12:00'));
+
+    expect($open->buffers(before: 1500)->slots('2026-04-15', '2026-04-15')->duration(60)->first()?->start->format('H:i'))->toBe('00:00')
+        ->and($open->buffers(before: 1500)->isAvailable(at('2026-04-15 00:00'), at('2026-04-15 01:00')))->toBeTrue()
+        ->and($open->buffers(before: 2880)->slots('2026-04-15', '2026-04-15')->duration(60)->get())->toHaveCount(24);
+});
