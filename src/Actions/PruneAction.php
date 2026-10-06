@@ -40,8 +40,9 @@ final readonly class PruneAction
 
     private function pruneExceptions(int $days, bool $dryRun): int
     {
-        // One indexed comparison in UTC; a day of timezone slack is irrelevant for pruning.
-        $cutoff = Clock::now()->setTimezone('UTC')->subDays($days)->toDateString();
+        // One indexed comparison against today's date in the westernmost zone (UTC−12): a
+        // date that has not ended there yet may still be in effect for some calendar.
+        $cutoff = Clock::now()->setTimezone('-12:00')->subDays($days)->toDateString();
         $class = ExceptionRuleModel::class();
         $query = $class::query()->where('recurrence', Recurrence::None->value)->where('ends_on', '<', $cutoff);
 

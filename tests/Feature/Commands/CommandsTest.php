@@ -98,3 +98,15 @@ it('materializes inline or queues per calendar, only when enabled', function ():
 
     expect(Interval::query()->count())->toBeGreaterThan(0);
 });
+
+it('keeps a one-off exception that is still in effect west of UTC', function (): void {
+    // 02:00 UTC on Wednesday is still Tuesday 22:00 in New York.
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-07T02:00:00Z'));
+    $clinic = Clinic::query()->create(['timezone' => 'America/New_York']);
+    $clinic->setOpeningHours(['week' => ['tuesday' => ['09:00-23:00']], 'exceptions' => [['date' => '2026-10-06']]]);
+
+    $this->artisan('opening-hours:prune', ['--exceptions-after-days' => '0'])->assertSuccessful();
+
+    expect(ExceptionRule::query()->count())->toBe(1)
+        ->and(Clinic::query()->findOrFail($clinic->id)->openingHours()->isOpen())->toBeFalse();
+});

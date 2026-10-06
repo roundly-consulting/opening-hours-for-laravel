@@ -47,6 +47,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   on the whole key instead of its start date.
 - Restoring a soft-deleted calendar by syncing it skipped the `limits.calendars` check, in production
   and in `OpeningHours::fake()`.
+- `opening-hours:prune --exceptions-after-days=0` deleted a one-off exception still in effect in a
+  calendar west of UTC: the cutoff now uses today's date at UTC−12.
 
 ## 1.0.0 - 2026-10-03
 
