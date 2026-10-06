@@ -15,6 +15,7 @@ use RoundlyConsulting\OpeningHours\Models\ExceptionRule;
 use RoundlyConsulting\OpeningHours\Models\Schedule;
 use RoundlyConsulting\OpeningHours\Models\ScheduleRange;
 use RoundlyConsulting\OpeningHours\Tests\Fixtures\Clinic;
+use RoundlyConsulting\OpeningHours\ValueObjects\LocalDate;
 
 function syncClinic(Clinic $clinic, array $payload, ?int $expected = null, string $key = 'default'): Calendar
 {
@@ -157,4 +158,23 @@ it('survives a simulated concurrent first insert (createOrFirst)', function (): 
     $calendar = syncClinic($clinic, ['week' => ['monday' => ['09:00-10:00']]]);
 
     expect(Calendar::query()->count())->toBe(1)->and($calendar->revision)->toBe(1);
+});
+
+it('refuses a date it could not read back, persisting nothing', function (): void {
+    $clinic = Clinic::query()->create();
+    $clinic->setOpeningHours(['week' => ['monday' => ['09:00-17:00']]]);
+    $far = LocalDate::fromString('2026-10-06')->addDays(80000);
+
+    try {
+        $clinic->editOpeningHours()->closed($far)->save();
+        $this->fail('An out-of-range date was saved.');
+    } catch (InvalidOpeningHoursException $exception) {
+        expect($exception->violations()->first()?->code)->toBe(ViolationCode::InvalidDate)
+            ->and($exception->violations()->first()?->path)->toBe('exceptions.0.from');
+    }
+
+    expect(ExceptionRule::query()->count())->toBe(0)
+        ->and($clinic->openingHoursCalendar()?->revision)->toBe(1)
+        ->and($clinic->editOpeningHours()->toData()->exceptions)->toBe([])
+        ->and(fn () => OpeningHours::make(['schedules' => [['window' => ['from' => '1899-12-31'], 'week' => []]]]))->toThrow(InvalidOpeningHoursException::class);
 });

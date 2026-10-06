@@ -20,6 +20,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   queued another job for the same calendar.
 - `ScheduleBuilder::fromData()` followed by `from()` or `until()` dropped the other bound of a dated
   window.
+- A date outside 1900–2200 built from a `LocalDate` was saved, after which every read of the
+  calendar threw; it is now refused with an `invalid_date` violation before anything is written.
 
 ## 1.0.0 - 2026-10-03
 

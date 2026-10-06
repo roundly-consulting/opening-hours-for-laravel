@@ -15,6 +15,7 @@ use RoundlyConsulting\OpeningHours\Enums\Weekday;
 use RoundlyConsulting\OpeningHours\Support\Limits;
 use RoundlyConsulting\OpeningHours\Support\TimezoneResolver;
 use RoundlyConsulting\OpeningHours\ValueObjects\AbsoluteWindow;
+use RoundlyConsulting\OpeningHours\ValueObjects\LocalDate;
 use RoundlyConsulting\OpeningHours\ValueObjects\TimeRange;
 
 /**
@@ -93,6 +94,8 @@ final class DefinitionValidator
             $this->label($schedule->label, "{$path}.label");
             $this->meta($schedule->meta, "{$path}.meta");
 
+            $this->windowDates($schedule->window, "{$path}.window.");
+
             if ($schedule->priority < -1000 || $schedule->priority > 1000) {
                 $this->violate(ViolationCode::InvalidPriority, "{$path}.priority", ['min' => -1000, 'max' => 1000]);
             }
@@ -160,6 +163,7 @@ final class DefinitionValidator
             }
 
             $this->exceptionOverlaps($exception, $i);
+            $this->windowDates($exception->window, "{$path}.");
 
             // Exceptions apply to real dates: an open bound is only valid on a schedule window.
             if ($exception->window instanceof AbsoluteWindow && ($exception->window->from === null || $exception->window->until === null)) {
@@ -214,6 +218,22 @@ final class DefinitionValidator
         ['from' => $from, 'until' => $until] = $window->toArray();
 
         return $from === $until || $until === null ? (string) $from : "{$from} – {$until}";
+    }
+
+    /**
+     * A stored date must read back: dates are only accepted for years 1900–2200.
+     */
+    private function windowDates(?DateWindow $window, string $prefix): void
+    {
+        if (! $window instanceof AbsoluteWindow) {
+            return;
+        }
+
+        foreach (['from' => $window->from, 'until' => $window->until] as $bound => $date) {
+            if ($date !== null && ! LocalDate::isValid($date->toDateString())) {
+                $this->violate(ViolationCode::InvalidDate, $prefix.$bound, ['value' => $date->toDateString()]);
+            }
+        }
     }
 
     private function rangeFields(TimeRange $range, string $path): void
