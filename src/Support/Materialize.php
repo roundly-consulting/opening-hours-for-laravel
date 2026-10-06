@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\OpeningHours\Support;
 
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Bus\Dispatcher;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use RoundlyConsulting\OpeningHours\Contracts\OpeningHoursOwner;
+use RoundlyConsulting\OpeningHours\Jobs\MaterializeIntervalsJob;
 use RoundlyConsulting\OpeningHours\Models\Calendar;
 use RoundlyConsulting\OpeningHours\OpeningHours;
 use RoundlyConsulting\OpeningHours\OpeningHoursManager;
@@ -43,6 +47,20 @@ final class Materialize
     public static function queue(): ?string
     {
         return Settings::materializeQueue();
+    }
+
+    /**
+     * Queue the calendar's job unless one is already pending. `Bus\Dispatcher::dispatch()`
+     * never takes the `ShouldBeUnique` lock (only a `PendingDispatch` does), so take it here;
+     * the queue worker releases it when the job ends.
+     */
+    public static function dispatchJob(int $calendarId, Dispatcher $bus, Repository $cache): void
+    {
+        $job = new MaterializeIntervalsJob($calendarId);
+
+        if ((new UniqueLock($cache))->acquire($job)) {
+            $bus->dispatch($job);
+        }
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use RoundlyConsulting\OpeningHours\Actions\MaterializeIntervalsAction;
 use RoundlyConsulting\OpeningHours\Exceptions\OutsideMaterializedHorizonException;
 use RoundlyConsulting\OpeningHours\Facades\OpeningHours;
@@ -184,4 +185,22 @@ it('drops the intervals of a calendar soft-deleted while the job runs', function
 
     expect($deleted)->toBeTrue()
         ->and(Interval::query()->count())->toBe(0);
+});
+
+it('queues one unique job per calendar until it runs, from the listener and the command', function (): void {
+    Queue::fake();
+    $changed = materializedClinic();
+    $changed->setOpeningHours(['week' => ['monday' => ['08:00-12:00']]]);
+
+    config()->set('opening-hours.materialize.enabled', false);
+    $rolled = materializedClinic();
+    config()->set('opening-hours.materialize.enabled', true);
+    $ids = ['--calendar' => [(string) $rolled->openingHoursCalendar()?->id]];
+    $this->artisan('opening-hours:materialize', $ids)->assertSuccessful();
+    $this->artisan('opening-hours:materialize', $ids)->assertSuccessful();
+
+    $pushed = fn (Clinic $clinic): int => Queue::pushed(MaterializeIntervalsJob::class, fn (MaterializeIntervalsJob $job): bool => $job->calendarId === $clinic->openingHoursCalendar()?->id)->count();
+
+    expect($pushed($changed))->toBe(1)
+        ->and($pushed($rolled))->toBe(1);
 });
