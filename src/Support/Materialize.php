@@ -9,6 +9,7 @@ use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use RoundlyConsulting\OpeningHours\Contracts\OpeningHoursOwner;
 use RoundlyConsulting\OpeningHours\Jobs\MaterializeIntervalsJob;
 use RoundlyConsulting\OpeningHours\Models\Calendar;
@@ -65,12 +66,14 @@ final class Materialize
 
     /**
      * The calendar evaluated like the owner sees it (owner timezone hook and
-     * dynamic providers included when the owner is an `OpeningHoursOwner`).
+     * dynamic providers included when the owner is an `OpeningHoursOwner`, soft-deleted
+     * or not).
      */
     public static function hoursFor(Calendar $calendar): OpeningHours
     {
         $ownerClass = Relation::getMorphedModel($calendar->owner_type) ?? $calendar->owner_type;
-        $owner = class_exists($ownerClass) ? $calendar->owner()->first() : null;
+        // A soft-deleted owner keeps its calendars, and so its timezone hook and providers.
+        $owner = class_exists($ownerClass) ? $calendar->owner()->withoutGlobalScope(SoftDeletingScope::class)->first() : null;
 
         if ($owner instanceof Model && $owner instanceof OpeningHoursOwner) {
             return app(OpeningHoursManager::class)->for($owner, $calendar->key);

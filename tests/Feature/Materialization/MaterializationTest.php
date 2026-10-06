@@ -232,3 +232,14 @@ it('refuses an instant past what the last daily run materialized', function (): 
         ->and(Clinic::query()->whereOpenAt(iso('2026-10-12T01:00:00Z'))->pluck('id')->all())->toBe([$clinic->id])
         ->and(fn () => Clinic::query()->whereOpenAt(iso('2026-10-13T01:00:00Z'))->count())->toThrow(OutsideMaterializedHorizonException::class);
 });
+
+it('materializes the calendar of a soft-deleted owner in that owner\'s timezone', function (): void {
+    Bus::fake();
+    $clinic = materializedClinic(['monday' => ['09:00-10:00']], 'America/New_York');
+    $clinic->delete();
+
+    app(MaterializeIntervalsAction::class)->execute(Calendar::query()->firstOrFail(), ld('2026-10-19'), ld('2026-10-20'));
+
+    expect($clinic->trashed())->toBeTrue()
+        ->and(Interval::query()->value('opens_at'))->toBe('2026-10-19 13:00:00');
+});

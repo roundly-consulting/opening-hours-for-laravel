@@ -54,6 +54,7 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 - `whereOpenAt()` and `whereOpenThroughout()` accepted instants up to `now + days_ahead`, past what the
   last daily run had stored, and silently answered "closed" there; the horizon now ends at
   `now + days_ahead − 1 day`.
+- Materialized intervals of a soft-deleted owner ignored its timezone hook and dynamic exceptions.
 
 ## 1.0.0 - 2026-10-03
 
