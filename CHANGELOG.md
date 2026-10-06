@@ -6,6 +6,31 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-06
+
+### Added
+
+- `Availability\Slot` implements `Arrayable` and `JsonSerializable`: `json_encode($slot)` and
+  `response()->json($slots)` give the `toArray()` shape (`start`, `end`, `available`,
+  `remaining_capacity`, `reason`, ISO-8601 times in the output timezone).
+
+### Changed
+
+- Slot JSON now has the `toArray()` shape; before, it carried camelCase keys (`remainingCapacity`)
+  and UTC times. Upgrade: a client that read `remainingCapacity` reads `remaining_capacity`, and
+  times carry the output timezone's offset instead of `Z`.
+- `max_query_days` also counts a booking's before-buffer, duration and after-buffer, and now limits
+  `isOpenDuring()`, `isClosedDuring()` and availability checks. `nextAvailableSlot()` throws
+  `QueryRangeTooLargeException` when a single slot with its buffers is longer than `max_query_days`.
+  Upgrade: raise `max_query_days` if a booking or a checked span can be longer.
+- The `whereOpenAt()` and `whereOpenThroughout()` horizon now ends at `now + days_ahead − 1 day`; an
+  instant in the last day before `now + days_ahead` throws `OutsideMaterializedHorizonException`
+  instead of answering "closed". Upgrade: raise `materialize.days_ahead` by one to keep the same
+  reach.
+- Documentation: the README hero image uses an absolute URL, so it renders on Packagist and other
+  sites.
+- Maintenance: `composer.json` `homepage` and `support.docs` now point to the documentation site.
+
 ### Fixed
 
 - Slot grids skipped lines across DST changes: a daily line on the spring-forward day, the first
