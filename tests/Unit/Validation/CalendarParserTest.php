@@ -207,3 +207,20 @@ it('sees a lone Feb 29 window overlap only a span that has a Feb 29', function (
         ->and(violationsOf(['schedules' => [$leapDay, $span('2027-01-01', '2028-12-31')]]))->toBe([[ViolationCode::AmbiguousScheduleWindow, 'schedules.1']])
         ->and(violationsOf(['schedules' => [$leapDay, ['window' => ['from' => '2027-01-01'], 'priority' => 5, 'week' => []]]]))->toBe([[ViolationCode::AmbiguousScheduleWindow, 'schedules.1']]);
 });
+
+it('reports merged ranges on their day, never at a post-merge index', function (): void {
+    $long = str_repeat('x', 200);
+    $merge = new ParseOptions(mergeOverlapping: true);
+    $range = fn (string $from, string $to, ?string $label = null): array => ['from' => $from, 'to' => $to, 'label' => $label];
+    // 24 hours plus an overlapping overnight range: the union spills into Tuesday, a day the input never named.
+    $spill = ['monday' => [$range('00:00', '24:00', $long), $range('12:00', '06:00', $long)]];
+
+    expect(violationsOf(['week' => ['monday' => [$range('12:00', '13:00'), $range('09:00', '11:00', $long), $range('10:00', '11:30', $long)]]], $merge))
+        ->toBe([[ViolationCode::LabelTooLong, 'week.monday']])
+        ->and(violationsOf(['week' => $spill], $merge))
+        ->toBe([[ViolationCode::LabelTooLong, 'week.monday'], [ViolationCode::LabelTooLong, 'week.tuesday']])
+        ->and(violationsOf(['schedules' => [['week' => $spill]]], $merge))
+        ->toBe([[ViolationCode::LabelTooLong, 'schedules.0.week.monday'], [ViolationCode::LabelTooLong, 'schedules.0.week.tuesday']])
+        ->and(violationsOf(['exceptions' => [['date' => '2026-01-01', 'ranges' => [$range('09:00', '11:00', $long), $range('10:00', '12:00', $long)]]]], $merge))
+        ->toBe([[ViolationCode::LabelTooLong, 'exceptions.0.ranges']]);
+});

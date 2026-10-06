@@ -21,6 +21,9 @@ final class Paths
      * @param  array<int, string>  $scheduleDays  schedule * 10 + iso => day path
      * @param  array<int, string>  $exceptions
      * @param  array<int, array<int, string>>  $exceptionRanges
+     * @param  array<int, string>  $weeks  schedule => week path
+     * @param  bool  $byDay  ranges were merged and no longer line up with the input: name the
+     *                       day (or an exception's ranges) instead of a range or its field
      */
     public function __construct(
         public array $schedules = [],
@@ -28,6 +31,8 @@ final class Paths
         public array $scheduleDays = [],
         public array $exceptions = [],
         public array $exceptionRanges = [],
+        public array $weeks = [],
+        public bool $byDay = false,
     ) {}
 
     public static function canonical(CalendarData $data): self
@@ -65,11 +70,15 @@ final class Paths
 
     public function scheduleDay(int $index, Weekday $day): string
     {
-        return $this->scheduleDays[$index * 10 + $day->iso()] ?? $this->schedule($index).'.week.'.$day->value;
+        return $this->scheduleDays[$index * 10 + $day->iso()] ?? ($this->weeks[$index] ?? $this->schedule($index).'.week').'.'.$day->value;
     }
 
     public function scheduleRange(int $index, Weekday $day, int $position): string
     {
+        if ($this->byDay) {
+            return $this->scheduleDay($index, $day);
+        }
+
         return $this->scheduleRanges[$index][$day->iso()][$position] ?? $this->scheduleDay($index, $day).'.'.$position;
     }
 
@@ -80,6 +89,18 @@ final class Paths
 
     public function exceptionRange(int $index, int $position): string
     {
+        if ($this->byDay) {
+            return $this->exception($index).'.ranges';
+        }
+
         return $this->exceptionRanges[$index][$position] ?? $this->exception($index).'.ranges.'.$position;
+    }
+
+    /**
+     * A field of one range (`label`, `meta`), or just the range's day when ranges were merged.
+     */
+    public function rangeField(string $range, string $field): string
+    {
+        return $this->byDay ? $range : "{$range}.{$field}";
     }
 }

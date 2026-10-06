@@ -38,6 +38,9 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   than a year, even one without a Feb 29.
 - An exception built from a ranges array with gaps or string keys (`array_filter()`, named entries)
   crashed validation with "Undefined array key" or a `TypeError`.
+- With `mergeOverlapping`, a violation on a merged range named a post-merge range index, and one
+  on a range spilling into the next day of the top-level `week` named `week.week.<day>`; both now
+  name the day.
 
 ## 1.0.0 - 2026-10-03
 

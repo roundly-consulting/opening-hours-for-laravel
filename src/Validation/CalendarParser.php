@@ -115,8 +115,7 @@ final class CalendarParser
         if ($this->options->mergeOverlapping) {
             $data = RangeNormalizer::normalize($data);
             // Merged ranges no longer line up with input positions; report on the day instead.
-            $this->paths->scheduleRanges = [];
-            $this->paths->exceptionRanges = [];
+            $this->paths->byDay = true;
         }
 
         $violations = new ViolationList($this->violations);
@@ -396,6 +395,8 @@ final class CalendarParser
 
     private function week(mixed $raw, string $path, int $scheduleIndex): ?WeekData
     {
+        $this->paths->weeks[$scheduleIndex] = $path;
+
         if (! is_array($raw)) {
             $this->violate(ViolationCode::InvalidStructure, $path);
 

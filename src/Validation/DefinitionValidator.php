@@ -238,8 +238,8 @@ final class DefinitionValidator
 
     private function rangeFields(TimeRange $range, string $path): void
     {
-        $this->label($range->label, "{$path}.label");
-        $this->meta($range->meta, "{$path}.meta");
+        $this->label($range->label, $this->paths->rangeField($path, 'label'));
+        $this->meta($range->meta, $this->paths->rangeField($path, 'meta'));
     }
 
     private function label(?string $label, string $path): void
