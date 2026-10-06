@@ -49,3 +49,14 @@ it('is what the builder uses', function (): void {
 
     expect($built)->toEqual(ExceptionData::make('12-24', '12-26', ['09:00-12:00'], 'Holidays'));
 });
+
+it('keeps its ranges a list whatever keys they came with', function (array $ranges): void {
+    $builder = CalendarBuilder::make()->exception('2026-12-24', ranges: $ranges);
+
+    expect($builder->violations()->isEmpty())->toBeTrue()
+        ->and(array_is_list($builder->toData()->exceptions[0]->ranges))->toBeTrue()
+        ->and(array_map(fn (TimeRange $range) => $range->toString('-'), ExceptionData::make('2026-12-24', ranges: $ranges)->ranges))->toBe(['09:00-10:00', '11:00-12:00']);
+})->with([
+    'filtered' => [array_filter(['09:00-10:00', '', '11:00-12:00'])],
+    'string keys' => [['morning' => '09:00-10:00', 'noon' => '11:00-12:00']],
+]);

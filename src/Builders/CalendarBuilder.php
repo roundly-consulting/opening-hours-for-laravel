@@ -174,7 +174,7 @@ final class CalendarBuilder
      * Custom hours on a date or date span (`Y-m-d`), or every year (`m-d`,
      * or `yearly: true`). No ranges means closed.
      *
-     * @param  list<TimeRange|string>  $ranges
+     * @param  array<TimeRange|string>  $ranges
      * @param  array<string, mixed>|null  $meta
      */
     public function exception(

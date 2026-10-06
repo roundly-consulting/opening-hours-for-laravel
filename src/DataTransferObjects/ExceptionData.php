@@ -36,7 +36,7 @@ final readonly class ExceptionData
      * Custom hours on a date or date span (`Y-m-d`), or every year (`m-d`, or
      * `yearly: true`). No ranges means closed.
      *
-     * @param  list<TimeRange|string>  $ranges
+     * @param  array<TimeRange|string>  $ranges
      * @param  array<string, mixed>|null  $meta
      *
      * @throws InvalidDateException
@@ -58,10 +58,11 @@ final readonly class ExceptionData
 
         return new self(
             $window,
-            array_map(
+            // A list whatever keys the caller's array had (`array_filter()`, named entries).
+            array_values(array_map(
                 static fn (TimeRange|string $range): TimeRange => $range instanceof TimeRange ? $range : TimeRange::fromString($range),
                 $ranges,
-            ),
+            )),
             $label,
             $meta,
         );
