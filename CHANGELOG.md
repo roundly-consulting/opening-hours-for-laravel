@@ -55,6 +55,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   last daily run had stored, and silently answered "closed" there; the horizon now ends at
   `now + days_ahead − 1 day`.
 - Materialized intervals of a soft-deleted owner ignored its timezone hook and dynamic exceptions.
+- `Calendar::factory()` and `Interval::factory()` faked an integer `owner_id`, which PostgreSQL refuses
+  when `key_type` is `uuid` or `ulid`.
 
 ## 1.0.0 - 2026-10-03
 

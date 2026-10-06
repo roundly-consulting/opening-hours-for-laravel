@@ -22,7 +22,7 @@ final class IntervalFactory extends Factory
         return [
             'calendar_id' => CalendarFactory::new(),
             'owner_type' => 'owner',
-            'owner_id' => 1,
+            'owner_id' => CalendarFactory::ownerKey(1),
             'calendar_key' => 'default',
             'opens_at' => '2026-09-28 07:00:00',
             'closes_at' => '2026-09-28 15:00:00',
