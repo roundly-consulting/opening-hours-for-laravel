@@ -34,6 +34,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   midnight (America/St_Johns until 2011) made the clock read the day before again.
 - A run joined across a skipped local day (Pacific/Apia 2011-12-30) reported a later start when asked
   at its first instant on the far side of the gap.
+- A yearly `02-29` schedule was reported as `ambiguous_schedule_window` against any dated window longer
+  than a year, even one without a Feb 29.
 
 ## 1.0.0 - 2026-10-03
 

@@ -197,3 +197,13 @@ it('merges overlapping ranges when asked', function (): void {
     expect($data->baseSchedule()?->week->ranges[1][0]->toString('-'))->toBe('09:00-13:00')
         ->and($data->exceptions[0]->ranges)->toHaveCount(1);
 });
+
+it('sees a lone Feb 29 window overlap only a span that has a Feb 29', function (): void {
+    $leapDay = ['window' => ['from' => '02-29', 'until' => '02-29'], 'priority' => 5, 'week' => []];
+    $span = fn (string $from, string $until): array => ['window' => ['from' => $from, 'until' => $until], 'priority' => 5, 'week' => []];
+
+    expect(violationsOf(['schedules' => [$leapDay, $span('2025-01-01', '2026-12-31')]]))->toBe([])
+        ->and(violationsOf(['schedules' => [$leapDay, $span('2097-03-01', '2104-02-28')]]))->toBe([])
+        ->and(violationsOf(['schedules' => [$leapDay, $span('2027-01-01', '2028-12-31')]]))->toBe([[ViolationCode::AmbiguousScheduleWindow, 'schedules.1']])
+        ->and(violationsOf(['schedules' => [$leapDay, ['window' => ['from' => '2027-01-01'], 'priority' => 5, 'week' => []]]]))->toBe([[ViolationCode::AmbiguousScheduleWindow, 'schedules.1']]);
+});

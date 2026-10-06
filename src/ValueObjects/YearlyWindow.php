@@ -71,14 +71,30 @@ final readonly class YearlyWindow implements DateWindow
 
         $span = $other->spanDays();
 
-        // Open-ended, or longer than a year: some occurrence always falls inside.
-        if ($span === null || $span > 366) {
+        // Open-ended: some occurrence always falls inside.
+        if ($span === null || $other->from === null || $other->until === null) {
+            return true;
+        }
+
+        // A lone Feb 29 occurs only in leap years, which a span of several years can miss.
+        if ($this->onlyInLeapYears()) {
+            for ($year = $other->from->year; $year <= $other->until->year; $year++) {
+                if (LocalDate::leap($year) && $other->contains(new LocalDate($year, 2, 29))) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Longer than a year: some occurrence always falls inside.
+        if ($span > 366) {
             return true;
         }
 
         $date = $other->from;
 
-        for ($i = 0; $i < $span && $date !== null; $i++) {
+        for ($i = 0; $i < $span; $i++) {
             if ($this->contains($date)) {
                 return true;
             }
@@ -87,6 +103,11 @@ final readonly class YearlyWindow implements DateWindow
         }
 
         return false;
+    }
+
+    private function onlyInLeapYears(): bool
+    {
+        return $this->from->equals($this->until) && $this->from->month === 2 && $this->from->day === 29;
     }
 
     /**
