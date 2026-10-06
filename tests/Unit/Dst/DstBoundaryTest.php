@@ -133,3 +133,14 @@ it('steps the slot grid on the local wall clock across DST transitions', functio
         // The repeated fall-back hour reads 02:00 again: a real line, not skipped.
         ->and($open->at(iso('2026-10-25T02:25:00+02:00'))->nextAvailableSlot(30, step: 120)?->start->format('H:i P'))->toBe('02:00 +01:00');
 });
+
+it('finds the next day\'s period when a fall-back after midnight repeats the day before', function (): void {
+    // St. John's fell back at 00:01 on 2009-11-01: at 03:00Z the clock reads 23:30 on Saturday
+    // again, while Sunday's 00:00 boundary already passed (02:30Z).
+    $hours = hours(['week' => ['sunday' => ['00:00-06:00']]], 'America/St_Johns');
+    $instant = iso('2009-11-01T03:00:00Z');
+
+    expect($hours->isOpenAt($instant))->toBeTrue()
+        ->and($hours->currentRange($instant)?->toString('-'))->toBe('00:00-06:00')
+        ->and($hours->currentPeriod($instant)?->start->format('c'))->toBe('2009-11-01T00:00:00-02:30');
+});

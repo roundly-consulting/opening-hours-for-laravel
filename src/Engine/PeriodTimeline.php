@@ -54,14 +54,15 @@ final class PeriodTimeline
 
     /**
      * The raw (uncoalesced) period containing the instant; the earliest-starting
-     * one when several overlap.
+     * one when several overlap. The next day is read too: a fall-back after local
+     * midnight repeats the day before once the next day's periods have begun.
      */
     public function rawPeriodAt(int $instant): ?RawPeriod
     {
         $day = $this->clock->localEpochDay($instant);
         $found = null;
 
-        foreach ([$day - 1, $day] as $candidateDay) {
+        foreach ([$day - 1, $day, $day + 1] as $candidateDay) {
             foreach ($this->rawPeriods($candidateDay) as $period) {
                 if ($period->start <= $instant && $instant < $period->end && ($found === null || $period->start < $found->start)) {
                     $found = $period;

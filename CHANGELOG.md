@@ -30,6 +30,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   depended on `max_query_days` and could be a slot `slots()` never lists.
 - `currentPeriod()` took the label, capacity and source of a long run only from the part around the
   instant, so the same run was described differently depending on when it was asked.
+- `isOpenAt()` and `currentRange()` missed a period of the next day when a fall-back just after
+  midnight (America/St_Johns until 2011) made the clock read the day before again.
 
 ## 1.0.0 - 2026-10-03
 
