@@ -6,6 +6,11 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 
 ## Unreleased
 
+### Fixed
+
+- Slot grids skipped lines across DST changes: a daily line on the spring-forward day, the first
+  line after the gap, and the repeated hour on the fall-back day.
+
 ## 1.0.0 - 2026-10-03
 
 Initial public release.

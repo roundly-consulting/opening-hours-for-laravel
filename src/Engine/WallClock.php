@@ -82,6 +82,26 @@ final class WallClock
         return $offset;
     }
 
+    /**
+     * The first offset change strictly after the instant, looked up through the
+     * following year; null when the zone has none there.
+     */
+    public function nextTransitionAfter(int $instant): ?int
+    {
+        $year = $this->yearOf($instant);
+
+        foreach ([$year, $year + 1] as $candidate) {
+            // A year's first piece is the state at its scan start, not a transition.
+            foreach (array_slice($this->piecesFor($candidate), 1) as [$start]) {
+                if ($start > $instant) {
+                    return $start;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public function localEpochDay(int $instant): int
     {
         $local = $instant + $this->offsetAt($instant);

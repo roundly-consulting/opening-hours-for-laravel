@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use RoundlyConsulting\OpeningHours\Availability\Slot;
 use RoundlyConsulting\OpeningHours\Engine\WallClock;
 
 /**
@@ -116,4 +117,19 @@ it('starts a midnight range at the midnight transition', function (): void {
     $hours = hours(['week' => ['sunday' => ['00:00-06:00']]], 'America/Santiago');
 
     expect($hours->nextOpen(iso('2026-09-05T12:00:00-04:00'))?->format('c'))->toBe('2026-09-06T01:00:00-03:00');
+});
+
+it('steps the slot grid on the local wall clock across DST transitions', function (): void {
+    $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);
+    $open = hours(['week' => $allWeek])->availability()->at(at('2026-03-27 12:00'));
+    $sunday = hours(['week' => ['sunday' => ['00:00-12:00']]])->availability();
+    $format = fn (Slot $slot): string => $slot->start->format('Y-m-d H:i P');
+
+    // A daily 10:00 line survives the 23-hour spring-forward day.
+    expect($open->slots('2026-03-28', '2026-03-30')->duration(60)->alignTo(1440, 600)->get()->map($format)->all())
+        ->toBe(['2026-03-28 10:00 +01:00', '2026-03-29 10:00 +02:00', '2026-03-30 10:00 +02:00'])
+        // The first line after the gap is 04:00, not 08:00.
+        ->and($sunday->at(at('2026-03-29 00:30'))->nextAvailableSlot(60, step: 240)?->start->format('H:i P'))->toBe('04:00 +02:00')
+        // The repeated fall-back hour reads 02:00 again: a real line, not skipped.
+        ->and($open->at(iso('2026-10-25T02:25:00+02:00'))->nextAvailableSlot(30, step: 120)?->start->format('H:i P'))->toBe('02:00 +01:00');
 });
