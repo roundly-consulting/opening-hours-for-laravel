@@ -178,3 +178,26 @@ it('refuses a date it could not read back, persisting nothing', function (): voi
         ->and($clinic->editOpeningHours()->toData()->exceptions)->toBe([])
         ->and(fn () => OpeningHours::make(['schedules' => [['window' => ['from' => '1899-12-31'], 'week' => []]]]))->toThrow(InvalidOpeningHoursException::class);
 });
+
+it('counts a restored calendar against limits.calendars, faked or not', function (bool $fake): void {
+    config()->set('opening-hours.limits.calendars', 2);
+    $clinic = Clinic::query()->create();
+    $clinic->setOpeningHours([], 'a');
+    $clinic->setOpeningHours([], 'c');
+    OpeningHours::delete($clinic, 'c');
+    $clinic->setOpeningHours([], 'b');
+
+    if ($fake) {
+        OpeningHours::fake();
+    }
+
+    try {
+        $clinic->setOpeningHours([], 'c');
+        $this->fail('Restoring a calendar went past the limit.');
+    } catch (InvalidOpeningHoursException $exception) {
+        expect($exception->violations()->first()?->code)->toBe(ViolationCode::LimitExceeded);
+    }
+
+    expect(Calendar::query()->count())->toBe(2)
+        ->and(Calendar::query()->onlyTrashed()->count())->toBe(1);
+})->with(['real' => [false], 'fake' => [true]]);

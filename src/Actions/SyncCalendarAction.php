@@ -64,7 +64,8 @@ final readonly class SyncCalendarAction
 
         $existing = $class::query()->withTrashed()->where($identity)->first();
 
-        if ($existing === null) {
+        // A restore brings a calendar back to life: it counts like a new one.
+        if ($existing === null || $existing->trashed()) {
             WriteChecks::calendarLimit($owner);
         }
 

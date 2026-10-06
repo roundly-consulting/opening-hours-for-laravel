@@ -50,7 +50,7 @@ final class OpeningHoursFake extends OpeningHoursManager
         $class = CalendarModel::class();
         $existing = $class::query()->withTrashed()->forOwner($owner)->forKey($key)->first();
 
-        if ($existing === null) {
+        if ($existing === null || $existing->trashed()) {
             WriteChecks::calendarLimit($owner);
         }
 

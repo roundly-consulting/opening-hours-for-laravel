@@ -44,7 +44,7 @@ final class WriteChecks
     }
 
     /**
-     * A new calendar must fit under `limits.calendars` for its owner.
+     * A new or restored calendar must fit under `limits.calendars` for its owner.
      *
      * @throws InvalidOpeningHoursException
      */
