@@ -204,11 +204,22 @@ final class Availability
 
     /**
      * The first free slot after `$after` (or now, whichever is later), starting
-     * within `min(horizon, search_days)` local days past that day. Searched in
-     * chunks of at most a week that each stay within `max_query_days`.
+     * within `min(horizon, search_days)` local days past that day — the one
+     * `slots()` over that window lists first. Searched in chunks of at most a week
+     * that each stay within `max_query_days`; a run's step sequence carries on
+     * across chunk edges, so the chunking never changes the answer.
      */
     public function nextAvailableSlot(int $duration, ?DateTimeInterface $after = null, ?int $step = null, int $weight = 1): ?Slot
     {
+        self::atLeast('duration', $duration, 1);
+        self::atLeast('weight', $weight, 1);
+
+        if ($step !== null) {
+            self::atLeast('step', $step, 1);
+        }
+
+        $step ??= $duration;
+        $resume = null;
         $clock = $this->hours->timeline()->clock;
         // Nothing before now is bookable: never spend the search window there.
         $start = max($after?->getTimestamp() ?? PHP_INT_MIN, $this->now());
@@ -220,7 +231,7 @@ final class Availability
             // Break at local midnight where possible; a DST-long week or day is cut
             // by real time instead, so the chunk never exceeds max_query_days.
             $chunkEnd = min($clock->boundaryAt($clock->localEpochDay($chunkStart) + $chunkDays, 0), $chunkStart + $chunkDays * 86400, $end);
-            $slot = (new SlotQuery($this, $chunkStart, $chunkEnd))->duration($duration)->step($step)->weight($weight)->first();
+            $slot = $this->scan($chunkStart, $chunkEnd, $duration, $step, $step, 0, $weight, false, 1, $resume)->first();
 
             if ($slot !== null) {
                 return $slot;
@@ -256,6 +267,18 @@ final class Availability
      */
     public function generate(int $from, int $until, int $duration, int $step, int $alignTo, int $anchor, int $weight, bool $includeUnavailable, int $limit): SlotCollection
     {
+        return $this->scan($from, $until, $duration, $step, $alignTo, $anchor, $weight, $includeUnavailable, $limit);
+    }
+
+    /**
+     * `$resume` carries a run's step sequence across adjacent windows: on entry, the
+     * next candidate of the run open at `$from` (null = start it afresh); on exit, the
+     * next candidate of the last run when its sequence ran past `$until`, else null.
+     */
+    private function scan(int $from, int $until, int $duration, int $step, int $alignTo, int $anchor, int $weight, bool $includeUnavailable, int $limit, ?int &$resume = null): SlotCollection
+    {
+        $carried = $resume;
+        $resume = null;
         $this->guardSpan($from, $until);
         $this->guardOccupancy($duration);
         $now = $this->now();
@@ -286,7 +309,10 @@ final class Availability
                 break;
             }
 
-            $candidate = SlotGrid::ceil(max($run->start + $beforeIn, $startMin), $alignTo, $anchor, $clock);
+            // Only the run open at `$from` continues the sequence the previous window left off.
+            $candidate = $carried !== null && $run->start < $from && $run->end > $from
+                ? $carried
+                : SlotGrid::ceil(max($run->start + $beforeIn, $startMin), $alignTo, $anchor, $clock);
 
             while ($candidate < $until && $candidate <= $startMax && $candidate + $duration * 60 + $afterIn <= $run->end) {
                 $remaining = $this->remaining($capacity, $candidate, $candidate + $duration * 60);
@@ -308,6 +334,8 @@ final class Availability
 
                 $candidate = SlotGrid::ceil($candidate + $step * 60, $alignTo, $anchor, $clock);
             }
+
+            $resume = $candidate >= $until ? $candidate : null;
         }
 
         return new SlotCollection($slots);

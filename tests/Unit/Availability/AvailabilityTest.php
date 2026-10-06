@@ -311,3 +311,21 @@ it('fits a before-buffer of a day or more into a run that started long before', 
         ->and($open->buffers(before: 1500)->isAvailable(at('2026-04-15 00:00'), at('2026-04-15 01:00')))->toBeTrue()
         ->and($open->buffers(before: 2880)->slots('2026-04-15', '2026-04-15')->duration(60)->get())->toHaveCount(24);
 });
+
+it('finds the next slot slots() lists first, whatever max_query_days chunks the search into', function (string $busyUntil, string $expected): void {
+    $allWeek = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-24:00']);
+    // A 100-minute step crosses midnight from 23:20 to 01:40: the step is the minimum gap.
+    $availability = hours(['week' => $allWeek])->availability()->at(at('2026-10-03 21:00'))
+        ->withBusyPeriods([busy('2026-10-03 21:00', $busyUntil)]);
+
+    expect($availability->slots(at('2026-10-03 21:00'), at('2026-10-11 00:00'))->duration(30)->step(100)->first()?->start->format('Y-m-d H:i'))->toBe($expected);
+
+    foreach ([366, 7, 2, 1] as $maxDays) {
+        config()->set('opening-hours.max_query_days', $maxDays);
+
+        expect($availability->nextAvailableSlot(30, step: 100)?->start->format('Y-m-d H:i'))->toBe($expected);
+    }
+})->with([
+    'past the first midnight' => ['2026-10-03 23:50', '2026-10-04 01:40'],
+    'past a week-long chunk' => ['2026-10-09 23:50', '2026-10-10 01:40'],
+]);

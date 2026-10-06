@@ -9,12 +9,14 @@ use RoundlyConsulting\OpeningHours\ValueObjects\Time;
 
 /**
  * Rounds an instant up to the first instant at or after it at which the local
- * wall clock reads a grid line (`anchor + k · grid` minutes past midnight). The
- * grid restarts at every local midnight, so a grid that does not divide the day
- * (or is longer than it) never skips the next day's first line. A jump never
- * crosses a timezone transition: the wall clock is re-read there, so a DST gap
- * or a repeated fall-back hour moves no line. Bounded passes converge across DST
- * gaps, 30-minute shifts and the midnight restart.
+ * wall clock reads a grid line (`anchor + k · grid` minutes past midnight); past
+ * a day's last line it lands on the next day's first one. The slot generator
+ * rounds a run start (so only a run start restarts the grid at local midnight)
+ * and the previous start plus the step, a minimum gap that may pass the next
+ * day's first line. A jump never crosses a timezone transition: the wall clock
+ * is re-read there, so a DST gap or a repeated fall-back hour moves no line.
+ * Bounded passes converge across DST gaps, 30-minute shifts and the midnight
+ * restart.
  *
  * @internal
  */
