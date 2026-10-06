@@ -18,7 +18,9 @@ use UnexpectedValueException;
  * Caches a calendar's canonical definition (plain arrays — never serialized
  * objects) under `{prefix}:{calendarId}:{revision}:v{format}`. Every write
  * bumps the revision inside its transaction, so a reader can never store stale
- * data under a current key; old keys simply expire. Works on every store (no tags).
+ * data under a current key; old keys simply expire. The manager never stores a
+ * definition read inside an open transaction: a rollback reuses that revision.
+ * Works on every store (no tags).
  */
 final readonly class DefinitionCache
 {

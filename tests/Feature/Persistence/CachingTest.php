@@ -129,3 +129,28 @@ it('rolls the revision when the calendar header is edited directly', function ()
     $calendar?->touch();
     expect($clinic->openingHoursCalendar()?->revision)->toBe(2);
 });
+
+it('never caches a definition written inside a transaction that rolls back', function (): void {
+    // 2026-09-28 is a Monday, 2026-09-29 a Tuesday.
+    $clinic = Clinic::query()->create();
+    $clinic->setOpeningHours(['week' => ['wednesday' => ['09:00-17:00']]]);
+
+    try {
+        DB::transaction(function () use ($clinic): void {
+            $clinic->setOpeningHours(['week' => ['monday' => ['09:00-10:00']]]);
+
+            throw new RuntimeException('host rollback');
+        });
+    } catch (RuntimeException) {
+    }
+
+    // The rolled-back write's revision is handed out again here.
+    $returned = $clinic->setOpeningHours(['week' => ['tuesday' => ['09:00-17:00']]]);
+    app(OpeningHoursManager::class)->flushMemo();
+    $fresh = $clinic->openingHours();
+
+    expect($returned->isOpenAt(at('2026-09-29 10:00', 'UTC')))->toBeTrue()
+        ->and($returned->isOpenAt(at('2026-09-28 09:30', 'UTC')))->toBeFalse()
+        ->and($fresh->isOpenAt(at('2026-09-29 10:00', 'UTC')))->toBeTrue()
+        ->and($fresh->isOpenAt(at('2026-09-28 09:30', 'UTC')))->toBeFalse();
+});

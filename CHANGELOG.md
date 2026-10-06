@@ -10,6 +10,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 
 - Slot grids skipped lines across DST changes: a daily line on the spring-forward day, the first
   line after the gap, and the repeated hour on the fall-back day.
+- A definition written inside a host transaction that rolled back stayed cached under a revision
+  the next write reuses, so reads served the rolled-back hours.
 
 ## 1.0.0 - 2026-10-03
 

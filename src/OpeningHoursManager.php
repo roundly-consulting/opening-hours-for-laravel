@@ -309,13 +309,21 @@ class OpeningHoursManager
             return $this->memo[$key];
         }
 
+        // A revision read inside an open transaction is not committed: a rollback hands
+        // it out again, so nothing read here may outlive the transaction.
+        $committed = $calendar->getConnection()->transactionLevel() === 0;
         $data = $this->cache->get($calendar->id, $calendar->revision);
 
         if ($data === null) {
             $data = $calendar->toData();
-            $this->cache->put($calendar->id, $calendar->revision, $data);
+
+            if ($committed) {
+                $this->cache->put($calendar->id, $calendar->revision, $data);
+            }
         }
 
-        return $this->memo[$key] = Compiler::compile($data->withRevision($calendar->revision));
+        $definition = Compiler::compile($data->withRevision($calendar->revision));
+
+        return $committed ? $this->memo[$key] = $definition : $definition;
     }
 }
