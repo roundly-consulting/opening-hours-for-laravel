@@ -14,6 +14,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   the next write reuses, so reads served the rolled-back hours.
 - `isAlwaysOpen()` ignored the gap at a hand-over to a schedule that covers the week only through
   overnight spill, so `nextClose()` and `previousClose()` returned null there.
+- `SlotCollection` broke `map()`, `groupBy()`, `chunk()`, `pluck()` and `mapInto()` followed by
+  `toArray()`, dropped `keyBy()` keys, and serialized to JSON in a different shape than `toArray()`.
 
 ## 1.0.0 - 2026-10-03
 

@@ -275,3 +275,15 @@ it('reports typed failures', function (): void {
         ->and(AvailabilityResult::ok(3)->message())->toBeNull()
         ->and(clinicAvailability()->slots('2026-09-20', '2026-09-21')->duration(30)->get())->toHaveCount(0);
 });
+
+it('keeps every collection method of a slot list working, and its json in the toArray shape', function (): void {
+    $slots = clinicAvailability()->slots('2026-09-28', '2026-09-29')->duration(240)->alignTo(60)->get();
+
+    expect($slots->map(fn (Slot $slot): string => $slot->start->format('H:i'))->toArray())->toBe(['09:00', '13:00', '09:00', '13:00'])
+        ->and($slots->groupBy(fn (Slot $slot): string => $slot->start->format('Y-m-d'))->toArray()['2026-09-29'][1]['start'])->toBe('2026-09-29T13:00:00+02:00')
+        ->and(array_keys($slots->keyBy(fn (Slot $slot): string => $slot->start->format('d H:i'))->toArray()))->toBe(['28 09:00', '28 13:00', '29 09:00', '29 13:00'])
+        ->and($slots->chunk(3)->toArray()[1])->toBe([3 => $slots[3]->toArray()])
+        ->and($slots->pluck('available')->toArray())->toBe([true, true, true, true])
+        ->and(json_encode($slots))->toBe(json_encode($slots->toArray()))
+        ->and(json_decode((string) json_encode($slots), true)[0])->toBe($slots->toArray()[0]);
+});

@@ -7,6 +7,9 @@ namespace RoundlyConsulting\OpeningHours\Availability;
 use Illuminate\Support\Collection;
 
 /**
+ * `toArray()` and JSON give each slot in `Slot::toArray()` shape, keys kept; any
+ * collection method (`map`, `groupBy`, `keyBy`, `chunk`, …) works as usual.
+ *
  * @extends Collection<int, Slot>
  */
 final class SlotCollection extends Collection
@@ -28,13 +31,5 @@ final class SlotCollection extends Collection
         }
 
         return $groups;
-    }
-
-    /**
-     * @return list<array{start: string, end: string, available: bool, remaining_capacity: int, reason: ?string}>
-     */
-    public function toArray(): array
-    {
-        return array_values(array_map(static fn (Slot $slot): array => $slot->toArray(), $this->items));
     }
 }
