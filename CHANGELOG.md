@@ -49,6 +49,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
   and in `OpeningHours::fake()`.
 - `opening-hours:prune --exceptions-after-days=0` deleted a one-off exception still in effect in a
   calendar west of UTC: the cutoff now uses today's date at UTC−12.
+- Materialization threw `QueryRangeTooLargeException` on a 25-hour fall-back day when
+  `max_query_days` was 1.
 
 ## 1.0.0 - 2026-10-03
 

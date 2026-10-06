@@ -36,13 +36,14 @@ final class MaterializeIntervalsAction
         $rows = [];
         $now = Clock::now();
 
-        for ($day = $from; ! $day->isAfter($to); $day = $day->addDays($chunk)) {
-            $last = $day->addDays($chunk - 1);
-            $last = $last->isAfter($to) ? $to : $last;
-            $start = $hours->instant($clock->boundary($day, 0));
-            $end = $hours->instant($clock->boundary($last->addDays(1), 0));
+        $end = $clock->boundary($to->addDays(1), 0);
 
-            foreach ($hours->openingPeriodsBetween($start, $end) as $period) {
+        for ($start = $clock->boundary($from, 0); $start < $end; $start = $chunkEnd) {
+            // Break at local midnight where possible; a DST-long day is cut by real time
+            // instead, so no chunk spans more than max_query_days.
+            $chunkEnd = min($clock->boundaryAt($clock->localEpochDay($start) + $chunk, 0), $start + $chunk * 86400, $end);
+
+            foreach ($hours->openingPeriodsBetween($hours->instant($start), $hours->instant($chunkEnd)) as $period) {
                 $opens = $period->start->getTimestamp();
                 $closes = $period->end->getTimestamp();
                 $previous = array_key_last($rows);

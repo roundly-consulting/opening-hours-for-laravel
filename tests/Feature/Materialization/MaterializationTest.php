@@ -204,3 +204,16 @@ it('queues one unique job per calendar until it runs, from the listener and the 
     expect($pushed($changed))->toBe(1)
         ->and($pushed($rolled))->toBe(1);
 });
+
+it('materializes a 25-hour fall-back day under a max_query_days of 1', function (): void {
+    Bus::fake();
+    config()->set('opening-hours.max_query_days', 1);
+    $clinic = materializedClinic();
+    $count = app(MaterializeIntervalsAction::class)->execute($clinic->openingHoursCalendar(), ld('2026-10-24'), ld('2026-10-27'));
+
+    expect($count)->toBe(2)
+        ->and(Interval::query()->orderBy('opens_at')->get()->map(fn (Interval $i) => $i->opens_at.'|'.$i->closes_at)->all())->toBe([
+            '2026-10-24 22:00:00|2026-10-25 23:00:00',
+            '2026-10-26 07:00:00|2026-10-26 16:00:00',
+        ]);
+});
