@@ -52,7 +52,7 @@ ArchPresets::modelsGoThroughTheFacade('RoundlyConsulting\OpeningHours');
 
 arch('the engine is pure: no database access')
     ->expect('RoundlyConsulting\OpeningHours\Engine')
-    ->not->toUse('Illuminate\Database');
+    ->not->toUse(['Illuminate\Database', 'Illuminate\Support\Facades\DB']);
 
 /**
  * One clock seam: every "now" goes through Support\Clock, so Carbon::setTestNow
