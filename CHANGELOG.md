@@ -6,6 +6,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 
 ## Unreleased
 
+## 1.1.1 - 2026-10-11
+
 ### Changed
 
 - Maintenance: requires the latest roundly packages — package-toolkit `^1.3.0`, enums `^1.1.0`; dev: testing `^1.2.1`.
