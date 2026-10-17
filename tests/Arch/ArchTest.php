@@ -40,6 +40,9 @@ ArchPresets::modelsResolveThroughSeam(__DIR__.'/../../src', 'Support', [
     'opening-hours.models.exception_rule',
 ]);
 
+/** A host swap reaches the packaged factories too: each one builds the configured model. */
+ArchPresets::factoriesResolveThroughSeam(__DIR__.'/../../database/factories', __DIR__.'/../../src', 'Support');
+
 /** Owner morph columns (calendars, intervals) go through the toolkit's morphKey seam. */
 ArchPresets::morphColumnsUseTheSeam(__DIR__.'/../../database/migrations');
 
