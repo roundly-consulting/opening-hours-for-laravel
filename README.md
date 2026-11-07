@@ -25,7 +25,7 @@ explicit DST rule, and capacity-aware booking slots fed by any busy-period sourc
 
 ## Installation
 
-Requires PHP 8.4, Laravel 12 or 13, and SQLite, PostgreSQL or MySQL.
+Requires PHP 8.4, Laravel 13, and SQLite, PostgreSQL or MySQL.
 
 ```bash
 composer require roundly-consulting/opening-hours-for-laravel
