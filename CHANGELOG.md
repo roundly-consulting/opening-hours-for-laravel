@@ -6,6 +6,8 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 
 ## Unreleased
 
+## 2.1.0 - 2026-11-08
+
 ### Added
 
 - Business-time arithmetic: `addOpenDays($from, $days)` returns the same local time on the n-th open date after
