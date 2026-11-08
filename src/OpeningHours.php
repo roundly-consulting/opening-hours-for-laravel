@@ -8,6 +8,8 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use DateTimeInterface;
 use DateTimeZone;
+use RoundlyConsulting\OpeningHours\Actions\AddOpenDaysAction;
+use RoundlyConsulting\OpeningHours\Actions\AddOpenTimeAction;
 use RoundlyConsulting\OpeningHours\Availability\Availability;
 use RoundlyConsulting\OpeningHours\Contracts\DynamicExceptionProvider;
 use RoundlyConsulting\OpeningHours\DataTransferObjects\CalendarData;
@@ -21,6 +23,7 @@ use RoundlyConsulting\OpeningHours\Engine\WallClock;
 use RoundlyConsulting\OpeningHours\Engine\WeekCoverage;
 use RoundlyConsulting\OpeningHours\Enums\DaySource;
 use RoundlyConsulting\OpeningHours\Enums\Weekday;
+use RoundlyConsulting\OpeningHours\Exceptions\OpenTimeNotFoundException;
 use RoundlyConsulting\OpeningHours\Exceptions\QueryRangeTooLargeException;
 use RoundlyConsulting\OpeningHours\Support\Clock;
 use RoundlyConsulting\OpeningHours\Support\Settings;
@@ -301,6 +304,33 @@ final class OpeningHours
         }
 
         return null;
+    }
+
+    // ──────────────────────────── Arithmetic ────────────────────────────
+
+    /**
+     * "N business days": the same local time on the n-th open date strictly after
+     * `$from`'s local date (Fri 15:00 + 2 → Tue 15:00), skipping closed dates, holidays and
+     * exceptions included. A time in a DST gap moves forward by the gap; a repeated time
+     * takes its first occurrence. Zero or negative `$days` returns `$from`.
+     *
+     * @throws OpenTimeNotFoundException when the n-th open date is not within `search_days`
+     */
+    public function addOpenDays(DateTimeInterface $from, int $days): CarbonImmutable
+    {
+        return app(AddOpenDaysAction::class)->execute($this, $from, $days);
+    }
+
+    /**
+     * "N business hours": the instant `$duration` of open time after `$from`, skipping
+     * every closed stretch. Real elapsed time (DST-correct), whole seconds; an instant
+     * exactly at a close counts as closed. Zero or negative returns `$from`.
+     *
+     * @throws OpenTimeNotFoundException when the result is not within `search_days`
+     */
+    public function addOpenTime(DateTimeInterface $from, CarbonInterval $duration): CarbonImmutable
+    {
+        return app(AddOpenTimeAction::class)->execute($this, $from, $duration);
     }
 
     // ─────────────────────────────── Days ───────────────────────────────

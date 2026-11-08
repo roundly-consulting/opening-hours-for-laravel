@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\OpeningHours\Facades;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterval;
 use Closure;
+use DateTimeInterface;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Facade;
@@ -25,6 +28,8 @@ use RoundlyConsulting\OpeningHours\Validation\ViolationList;
  * lines exist only after `OpeningHours::fake()`.
  *
  * @method static OpeningHoursQuery for(Model $owner, ?string $calendar = null)
+ * @method static CarbonImmutable addOpenDays(Model $owner, DateTimeInterface $from, int $days, ?string $calendar = null)
+ * @method static CarbonImmutable addOpenTime(Model $owner, DateTimeInterface $from, CarbonInterval $duration, ?string $calendar = null)
  * @method static Calendar|null calendar(Model $owner, ?string $calendar = null)
  * @method static bool has(Model $owner, ?string $calendar = null)
  * @method static CalendarBuilder edit(Model $owner, ?string $calendar = null)

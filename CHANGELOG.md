@@ -6,6 +6,18 @@ All notable changes to `opening-hours-for-laravel` are documented in this file. 
 
 ## Unreleased
 
+### Added
+
+- Business-time arithmetic: `addOpenDays($from, $days)` returns the same local time on the n-th open date after
+  `$from`'s date ("2 business days": Fri 15:00 → Tue 15:00), and `addOpenTime($from, CarbonInterval $duration)` returns
+  the instant that much open time later ("4 business hours"). Both skip holidays, exceptions and dynamic exceptions,
+  are DST-correct (a repeated time takes its first occurrence, open time is real elapsed time) and look no further than
+  `opening-hours.search_days`. Available on the query object (`OpeningHours::for($owner)->addOpenDays(…)`), the facade
+  and manager (`OpeningHours::addOpenDays($owner, $from, 2, calendar: 'support')`), the `HasOpeningHours` trait
+  (`$shop->addOpenTime($from, CarbonInterval::hours(4))`) and the new `AddOpenDaysAction` / `AddOpenTimeAction`.
+- `OpenTimeNotFoundException` (with `$searchDays`): thrown when the calendar has not enough open time within
+  `search_days`, e.g. one that is never open.
+
 ## 2.0.0 - 2026-11-07
 
 ### Changed

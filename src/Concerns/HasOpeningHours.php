@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\OpeningHours\Concerns;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterval;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -79,6 +81,22 @@ trait HasOpeningHours
     public function hasOpeningHours(?string $calendar = null): bool
     {
         return app(OpeningHoursManager::class)->has($this->openingHoursOwner(), $calendar);
+    }
+
+    /**
+     * "N business days" on this owner's calendar (see `OpeningHours::addOpenDays()`).
+     */
+    public function addOpenDays(DateTimeInterface $from, int $days, ?string $calendar = null): CarbonImmutable
+    {
+        return app(OpeningHoursManager::class)->addOpenDays($this->openingHoursOwner(), $from, $days, $calendar);
+    }
+
+    /**
+     * "N business hours" on this owner's calendar (see `OpeningHours::addOpenTime()`).
+     */
+    public function addOpenTime(DateTimeInterface $from, CarbonInterval $duration, ?string $calendar = null): CarbonImmutable
+    {
+        return app(OpeningHoursManager::class)->addOpenTime($this->openingHoursOwner(), $from, $duration, $calendar);
     }
 
     /**

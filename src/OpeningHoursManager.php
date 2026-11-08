@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\OpeningHours;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterval;
+use DateTimeInterface;
 use DateTimeZone;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\OpeningHours\Actions\AddExceptionAction;
+use RoundlyConsulting\OpeningHours\Actions\AddOpenDaysAction;
+use RoundlyConsulting\OpeningHours\Actions\AddOpenTimeAction;
 use RoundlyConsulting\OpeningHours\Actions\BumpRevisionAction;
 use RoundlyConsulting\OpeningHours\Actions\DeleteCalendarAction;
 use RoundlyConsulting\OpeningHours\Actions\RemoveExceptionAction;
@@ -62,6 +67,28 @@ class OpeningHoursManager
         }
 
         return $this->build($header, $owner);
+    }
+
+    /**
+     * "N business days" on the owner's calendar: the same local time on the n-th open date
+     * after `$from`'s date. Same as `for($owner, $calendar)->addOpenDays($from, $days)`.
+     *
+     * @param  Model&OpeningHoursOwner  $owner
+     */
+    public function addOpenDays(Model $owner, DateTimeInterface $from, int $days, ?string $calendar = null): CarbonImmutable
+    {
+        return $this->container->make(AddOpenDaysAction::class)->execute($this->for($owner, $calendar), $from, $days);
+    }
+
+    /**
+     * "N business hours" on the owner's calendar: the instant `$duration` of open time after
+     * `$from`. Same as `for($owner, $calendar)->addOpenTime($from, $duration)`.
+     *
+     * @param  Model&OpeningHoursOwner  $owner
+     */
+    public function addOpenTime(Model $owner, DateTimeInterface $from, CarbonInterval $duration, ?string $calendar = null): CarbonImmutable
+    {
+        return $this->container->make(AddOpenTimeAction::class)->execute($this->for($owner, $calendar), $from, $duration);
     }
 
     /**
